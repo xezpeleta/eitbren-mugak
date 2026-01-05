@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 class ContentDatabase:
-    """SQLite database for Primeran content and geo-restriction data"""
+    """SQLite database for content and geo-restriction data (multi-platform)"""
     
     def __init__(self, db_path: str = "platforms/primeran/primeran_content.db"):
         """
@@ -24,6 +24,7 @@ class ContentDatabase:
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
+        self._migrate_add_platform()
     
     def _create_tables(self):
         """Create database tables if they don't exist"""
@@ -33,7 +34,8 @@ class ContentDatabase:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS content (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT UNIQUE NOT NULL,
+                slug TEXT NOT NULL,
+                platform TEXT NOT NULL DEFAULT 'primeran.eus',
                 title TEXT,
                 type TEXT NOT NULL,  -- 'movie', 'episode', 'documentary', 'concert', etc.
                 duration INTEGER,  -- Duration in seconds
@@ -48,7 +50,8 @@ class ContentDatabase:
                 last_checked TIMESTAMP,
                 metadata TEXT,  -- JSON blob with full API response
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(slug, platform)
             )
         """)
         
@@ -77,6 +80,9 @@ class ContentDatabase:
             CREATE INDEX IF NOT EXISTS idx_content_series_slug ON content(series_slug)
         """)
         cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_content_platform ON content(platform)
+        """)
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_check_history_slug ON check_history(slug)
         """)
         cursor.execute("""
@@ -85,12 +91,127 @@ class ContentDatabase:
         
         self.conn.commit()
     
+    def _migrate_add_platform(self):
+        """
+        Migrate existing database to add platform column.
+        This is safe to run multiple times - it checks if migration is needed.
+        """
+        cursor = self.conn.cursor()
+        
+        # Check if platform column exists
+        cursor.execute("PRAGMA table_info(content)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'platform' not in columns:
+            print("Migrating database: Adding platform column...")
+            
+            # Add platform column with default value
+            cursor.execute("""
+                ALTER TABLE content 
+                ADD COLUMN platform TEXT NOT NULL DEFAULT 'primeran.eus'
+            """)
+            
+            # Update all existing records to have platform = 'primeran.eus'
+            cursor.execute("""
+                UPDATE content 
+                SET platform = 'primeran.eus' 
+                WHERE platform IS NULL OR platform = ''
+            """)
+            
+            # Drop old unique constraint on slug (if it exists as a separate constraint)
+            # SQLite doesn't support DROP CONSTRAINT directly, so we need to recreate the table
+            # However, since we're using UNIQUE in CREATE TABLE, we'll handle this differently
+            # For existing databases, we'll need to recreate the table
+            
+            # Check if we need to recreate table for unique constraint
+            # SQLite doesn't enforce UNIQUE constraints added via ALTER TABLE the same way
+            # So we'll create a new table with the proper constraint and migrate data
+            try:
+                # Create new table with composite unique constraint
+                cursor.execute("""
+                    CREATE TABLE content_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        slug TEXT NOT NULL,
+                        platform TEXT NOT NULL DEFAULT 'primeran.eus',
+                        title TEXT,
+                        type TEXT NOT NULL,
+                        duration INTEGER,
+                        year INTEGER,
+                        genres TEXT,
+                        series_slug TEXT,
+                        series_title TEXT,
+                        season_number INTEGER,
+                        episode_number INTEGER,
+                        is_geo_restricted BOOLEAN,
+                        restriction_type TEXT,
+                        last_checked TIMESTAMP,
+                        metadata TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(slug, platform)
+                    )
+                """)
+                
+                # Copy data from old table
+                cursor.execute("""
+                    INSERT INTO content_new 
+                    SELECT 
+                        id, slug, 
+                        COALESCE(platform, 'primeran.eus') as platform,
+                        title, type, duration, year, genres,
+                        series_slug, series_title, season_number, episode_number,
+                        is_geo_restricted, restriction_type, last_checked, metadata,
+                        created_at, updated_at
+                    FROM content
+                """)
+                
+                # Drop old table
+                cursor.execute("DROP TABLE content")
+                
+                # Rename new table
+                cursor.execute("ALTER TABLE content_new RENAME TO content")
+                
+                # Recreate indexes
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_content_type ON content(type)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_content_geo_restricted ON content(is_geo_restricted)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_content_series_slug ON content(series_slug)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_content_platform ON content(platform)
+                """)
+                
+                print("  ✓ Migration complete: Added platform column and composite unique constraint")
+            except sqlite3.OperationalError as e:
+                # If table recreation fails, at least we have the platform column
+                print(f"  ⚠️  Migration partially complete: {e}")
+                print("  Note: Unique constraint may need manual update")
+            
+            self.conn.commit()
+        else:
+            # Platform column exists, but check if we need to set defaults
+            cursor.execute("SELECT COUNT(*) FROM content WHERE platform IS NULL OR platform = ''")
+            null_count = cursor.fetchone()[0]
+            if null_count > 0:
+                print(f"Migrating database: Setting platform for {null_count} records...")
+                cursor.execute("""
+                    UPDATE content 
+                    SET platform = 'primeran.eus' 
+                    WHERE platform IS NULL OR platform = ''
+                """)
+                self.conn.commit()
+                print("  ✓ Migration complete: Set platform for existing records")
+    
     def upsert_content(self, content_data: Dict[str, Any]) -> int:
         """
         Insert or update content record
         
         Args:
-            content_data: Dictionary with content information
+            content_data: Dictionary with content information (must include 'platform')
             
         Returns:
             Content ID
@@ -99,6 +220,7 @@ class ContentDatabase:
         
         # Prepare data
         slug = content_data['slug']
+        platform = content_data.get('platform', 'primeran.eus')
         title = content_data.get('title')
         content_type = content_data.get('type', 'unknown')
         duration = content_data.get('duration')
@@ -115,12 +237,12 @@ class ContentDatabase:
         
         cursor.execute("""
             INSERT INTO content (
-                slug, title, type, duration, year, genres,
+                slug, platform, title, type, duration, year, genres,
                 series_slug, series_title, season_number, episode_number,
                 is_geo_restricted, restriction_type, last_checked, metadata
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(slug) DO UPDATE SET
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(slug, platform) DO UPDATE SET
                 title = excluded.title,
                 type = excluded.type,
                 duration = excluded.duration,
@@ -136,7 +258,7 @@ class ContentDatabase:
                 metadata = excluded.metadata,
                 updated_at = CURRENT_TIMESTAMP
         """, (
-            slug, title, content_type, duration, year, genres,
+            slug, platform, title, content_type, duration, year, genres,
             series_slug, series_title, season_number, episode_number,
             is_geo_restricted, restriction_type, last_checked, metadata
         ))
@@ -144,22 +266,31 @@ class ContentDatabase:
         self.conn.commit()
         return cursor.lastrowid
     
-    def get_content_status(self, slug: str) -> Optional[Dict[str, Any]]:
+    def get_content_status(self, slug: str, platform: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get existing content's geo-restriction status
         
         Args:
             slug: Content slug
+            platform: Platform name (optional, if None checks any platform)
             
         Returns:
             Dictionary with is_geo_restricted and restriction_type, or None if not found
         """
         cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT is_geo_restricted, restriction_type 
-            FROM content 
-            WHERE slug = ?
-        """, (slug,))
+        if platform:
+            cursor.execute("""
+                SELECT is_geo_restricted, restriction_type 
+                FROM content 
+                WHERE slug = ? AND platform = ?
+            """, (slug, platform))
+        else:
+            cursor.execute("""
+                SELECT is_geo_restricted, restriction_type 
+                FROM content 
+                WHERE slug = ?
+                LIMIT 1
+            """, (slug,))
         row = cursor.fetchone()
         if row:
             return {
@@ -193,18 +324,22 @@ class ContentDatabase:
         
         self.conn.commit()
     
-    def get_content(self, slug: str) -> Optional[Dict[str, Any]]:
+    def get_content(self, slug: str, platform: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get content by slug
         
         Args:
             slug: Content slug
+            platform: Platform name (optional, if None returns first match)
             
         Returns:
             Content dictionary or None if not found
         """
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM content WHERE slug = ?", (slug,))
+        if platform:
+            cursor.execute("SELECT * FROM content WHERE slug = ? AND platform = ?", (slug, platform))
+        else:
+            cursor.execute("SELECT * FROM content WHERE slug = ? LIMIT 1", (slug,))
         row = cursor.fetchone()
         
         if row:
@@ -213,13 +348,15 @@ class ContentDatabase:
     
     def get_all_content(self, 
                        content_type: Optional[str] = None,
-                       geo_restricted_only: bool = False) -> List[Dict[str, Any]]:
+                       geo_restricted_only: bool = False,
+                       platform: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get all content with optional filters
         
         Args:
             content_type: Filter by type (e.g., 'episode', 'movie')
             geo_restricted_only: Only return geo-restricted content
+            platform: Filter by platform (e.g., 'primeran.eus', 'makusi.eus')
             
         Returns:
             List of content dictionaries
@@ -236,6 +373,10 @@ class ContentDatabase:
         if geo_restricted_only:
             query += " AND is_geo_restricted = 1"
         
+        if platform:
+            query += " AND platform = ?"
+            params.append(platform)
+        
         query += " ORDER BY title"
         
         cursor.execute(query, params)
@@ -243,37 +384,55 @@ class ContentDatabase:
         
         return [dict(row) for row in rows]
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self, platform: Optional[str] = None) -> Dict[str, Any]:
         """
         Get database statistics
         
+        Args:
+            platform: Filter statistics by platform (optional)
+            
         Returns:
             Dictionary with statistics
         """
         cursor = self.conn.cursor()
         
         stats = {}
+        where_clause = ""
+        params = []
+        
+        if platform:
+            where_clause = " WHERE platform = ?"
+            params = [platform]
         
         # Total content
-        cursor.execute("SELECT COUNT(*) FROM content")
+        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause}", params)
         stats['total_content'] = cursor.fetchone()[0]
         
         # By type
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT type, COUNT(*) as count 
             FROM content 
+            {where_clause}
             GROUP BY type
-        """)
+        """, params)
         stats['by_type'] = {row[0]: row[1] for row in cursor.fetchall()}
         
+        # By platform
+        cursor.execute("""
+            SELECT platform, COUNT(*) as count 
+            FROM content 
+            GROUP BY platform
+        """)
+        stats['by_platform'] = {row[0]: row[1] for row in cursor.fetchall()}
+        
         # Geo-restricted
-        cursor.execute("SELECT COUNT(*) FROM content WHERE is_geo_restricted = 1")
+        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted = 1", params)
         stats['geo_restricted_count'] = cursor.fetchone()[0]
         
-        cursor.execute("SELECT COUNT(*) FROM content WHERE is_geo_restricted = 0")
+        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted = 0", params)
         stats['accessible_count'] = cursor.fetchone()[0]
         
-        cursor.execute("SELECT COUNT(*) FROM content WHERE is_geo_restricted IS NULL")
+        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted IS NULL", params)
         stats['unknown_count'] = cursor.fetchone()[0]
         
         # Percentage
@@ -285,7 +444,7 @@ class ContentDatabase:
             stats['geo_restricted_percentage'] = 0
         
         # Last check
-        cursor.execute("SELECT MAX(last_checked) FROM content")
+        cursor.execute(f"SELECT MAX(last_checked) FROM content{where_clause}", params)
         stats['last_check'] = cursor.fetchone()[0]
         
         return stats
