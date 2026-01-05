@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--media-slug', help='Check specific media slug')
     parser.add_argument('--series-slug', help='Check specific series slug')
     parser.add_argument('--db', default='platforms/primeran/primeran_content.db', help='Database file path')
-    parser.add_argument('--output-dir', default='dashboard/data', help='Output directory for JSON')
+    parser.add_argument('--output-dir', default='docs/data', help='Output directory for JSON')
     parser.add_argument('--delay', type=float, default=0.5, help='Delay between requests (seconds)')
     parser.add_argument('--limit', type=int, help='Limit number of items to check (for testing)')
     parser.add_argument('--disable-geo-check', action='store_true', 

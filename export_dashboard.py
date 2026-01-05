@@ -14,7 +14,7 @@ from src.exporter import JSONExporter
 
 def main():
     db_path = 'platforms/primeran/primeran_content.db'
-    output_dir = 'dashboard/data'
+    output_dir = 'docs/data'
     
     print("Loading database...")
     db = ContentDatabase(db_path)

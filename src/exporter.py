@@ -15,7 +15,7 @@ from .database import ContentDatabase
 class JSONExporter:
     """Export content data to JSON for static website"""
     
-    def __init__(self, db: ContentDatabase, output_dir: str = "dashboard/data"):
+    def __init__(self, db: ContentDatabase, output_dir: str = "docs/data"):
         """
         Initialize exporter
         
