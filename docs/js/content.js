@@ -485,8 +485,8 @@ function renderSeriesRow(series, isExpanded) {
 
 // Render content row
 function renderContentRow(item, isEpisode, isExpanded) {
-    const restrictedStatus = item.is_geo_restricted === true ? 'Restricted' :
-                            item.is_geo_restricted === false ? 'Accessible' : 'Unknown';
+    const restrictedStatus = item.is_geo_restricted === true ? 'Murriztua' :
+                            item.is_geo_restricted === false ? 'Murriztu-gabea' : 'Ezezaguna';
     const statusClass = item.is_geo_restricted === true ? 'status-restricted' :
                        item.is_geo_restricted === false ? 'status-accessible' : 'status-unknown';
     
