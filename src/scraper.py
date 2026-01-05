@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
 """
-Content scraper for Primeran.eus
+Content scraper for EITB platforms (Primeran, Makusi, etc.)
 
 Discovers all content and checks for geo-restrictions.
 """
 
 import time
 import requests
-from typing import List, Dict, Any, Set, Optional
+from typing import List, Dict, Any, Set, Optional, Union
 from .primeran_api import PrimeranAPI
+from .makusi_api import MakusiAPI
 from .database import ContentDatabase
 
 
 class ContentScraper:
-    """Scraper for discovering and checking Primeran content"""
+    """Scraper for discovering and checking content from EITB platforms"""
     
-    def __init__(self, api: PrimeranAPI, db: ContentDatabase, delay: float = 0.5, disable_geo_check: bool = False):
+    def __init__(self, api: Union[PrimeranAPI, MakusiAPI], db: ContentDatabase, delay: float = 0.5, disable_geo_check: bool = False):
         """
         Initialize scraper
         
         Args:
-            api: PrimeranAPI instance
+            api: API instance (PrimeranAPI or MakusiAPI)
             db: ContentDatabase instance
             delay: Delay between requests in seconds (to avoid rate limiting)
             disable_geo_check: If True, skip geo-restriction checks (useful when using VPN to update metadata)
@@ -29,6 +30,7 @@ class ContentScraper:
         self.db = db
         self.delay = delay
         self.disable_geo_check = disable_geo_check
+        self.platform = api.platform  # Get platform from API object
         self.discovered_slugs: Set[str] = set()
         self.stats = {
             'total_discovered': 0,
@@ -100,39 +102,41 @@ class ContentScraper:
         slugs = set()
         
         try:
-            # Method 1: Use search API with empty query to get all content
-            try:
-                response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
-                if response.status_code == 200:
-                    search_data = response.json()
-                    self._sleep()
-                    if 'data' in search_data and isinstance(search_data['data'], list):
-                        for item in search_data['data']:
-                            if 'slug' in item:
-                                media_type = item.get('media_type', '').lower()
-                                collection = item.get('collection', '').lower()
-                                # Only include actual media items (not pages, collections, etc.)
-                                if media_type != 'series' and collection in ['media', 'vod', 'movie', 'documentary', 'concert']:
-                                    slugs.add(item['slug'])
-                        print(f"  Found {len(slugs)} items from search API")
-            except Exception as e:
-                print(f"  Search API failed: {e}")
-            
-            # Method 2: Parse category pages
-            categories = ['/telesailak', '/zinema', '/dokumentalak-p', '/generoak-musika']
-            for cat in categories:
+            # Method 1: Use search API with empty query to get all content (Primeran only)
+            if self.platform == 'primeran.eus':
                 try:
-                    response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                    response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
                     if response.status_code == 200:
-                        page_data = response.json()
+                        search_data = response.json()
                         self._sleep()
-                        if 'children' in page_data:
-                            series_slugs = set()
-                            self._extract_slugs_from_children(page_data['children'], slugs, series_slugs)
+                        if 'data' in search_data and isinstance(search_data['data'], list):
+                            for item in search_data['data']:
+                                if 'slug' in item:
+                                    media_type = item.get('media_type', '').lower()
+                                    collection = item.get('collection', '').lower()
+                                    # Only include actual media items (not pages, collections, etc.)
+                                    if media_type != 'series' and collection in ['media', 'vod', 'movie', 'documentary', 'concert']:
+                                        slugs.add(item['slug'])
+                            print(f"  Found {len(slugs)} items from search API")
                 except Exception as e:
-                    pass
+                    print(f"  Search API failed: {e}")
             
-            # Method 3: Get home content
+            # Method 2: Parse category pages (Primeran only)
+            if self.platform == 'primeran.eus':
+                categories = ['/telesailak', '/zinema', '/dokumentalak-p', '/generoak-musika']
+                for cat in categories:
+                    try:
+                        response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                        if response.status_code == 200:
+                            page_data = response.json()
+                            self._sleep()
+                            if 'children' in page_data:
+                                series_slugs = set()
+                                self._extract_slugs_from_children(page_data['children'], slugs, series_slugs)
+                    except Exception as e:
+                        pass
+            
+            # Method 3: Get home content (works for both platforms)
             try:
                 home_data = self.api.get_home_content()
                 self._sleep()
@@ -158,39 +162,41 @@ class ContentScraper:
         series_slugs = set()
         
         try:
-            # Method 1: Use search API with empty query
-            try:
-                response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
-                if response.status_code == 200:
-                    search_data = response.json()
-                    self._sleep()
-                    if 'data' in search_data and isinstance(search_data['data'], list):
-                        for item in search_data['data']:
-                            if 'slug' in item:
-                                media_type = item.get('media_type', '').lower()
-                                collection = item.get('collection', '').lower()
-                                # Only include actual series
-                                if media_type == 'series' or collection == 'series':
-                                    series_slugs.add(item['slug'])
-                        print(f"  Found {len(series_slugs)} series from search API")
-            except Exception as e:
-                print(f"  Search API failed: {e}")
-            
-            # Method 2: Parse category pages (especially telesailak)
-            categories = ['/telesailak', '/zinema', '/dokumentalak-p']
-            for cat in categories:
+            # Method 1: Use search API with empty query (Primeran only)
+            if self.platform == 'primeran.eus':
                 try:
-                    response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                    response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
                     if response.status_code == 200:
-                        page_data = response.json()
+                        search_data = response.json()
                         self._sleep()
-                        if 'children' in page_data:
-                            media_slugs = set()
-                            self._extract_slugs_from_children(page_data['children'], media_slugs, series_slugs)
+                        if 'data' in search_data and isinstance(search_data['data'], list):
+                            for item in search_data['data']:
+                                if 'slug' in item:
+                                    media_type = item.get('media_type', '').lower()
+                                    collection = item.get('collection', '').lower()
+                                    # Only include actual series
+                                    if media_type == 'series' or collection == 'series':
+                                        series_slugs.add(item['slug'])
+                        print(f"  Found {len(series_slugs)} series from search API")
                 except Exception as e:
-                    pass
+                    print(f"  Search API failed: {e}")
             
-            # Method 3: Get home content
+            # Method 2: Parse category pages (Primeran only)
+            if self.platform == 'primeran.eus':
+                categories = ['/telesailak', '/zinema', '/dokumentalak-p']
+                for cat in categories:
+                    try:
+                        response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                        if response.status_code == 200:
+                            page_data = response.json()
+                            self._sleep()
+                            if 'children' in page_data:
+                                media_slugs = set()
+                                self._extract_slugs_from_children(page_data['children'], media_slugs, series_slugs)
+                    except Exception as e:
+                        pass
+            
+            # Method 3: Get home content (works for both platforms)
             try:
                 home_data = self.api.get_home_content()
                 self._sleep()
@@ -240,6 +246,7 @@ class ContentScraper:
                 # Create content data with limited info
                 content_data = {
                     'slug': slug,
+                    'platform': self.platform,
                     'title': slug.replace('-', ' ').title(),  # Best guess from slug
                     'type': 'unknown',
                     'is_geo_restricted': True,
@@ -273,6 +280,7 @@ class ContentScraper:
                 # Create content data with limited info
                 content_data = {
                     'slug': slug,
+                    'platform': self.platform,
                     'title': slug.replace('-', ' ').title(),  # Best guess from slug
                     'type': 'unknown',
                     'is_geo_restricted': True,
@@ -302,11 +310,12 @@ class ContentScraper:
             if self.disable_geo_check:
                 print(f"    ℹ️  Geo-check disabled - fetching metadata only")
                 # Get existing status from DB if available
-                existing_status = self.db.get_content_status(slug)
+                existing_status = self.db.get_content_status(slug, self.platform)
                 
                 # Prepare content data
                 content_data = {
                     'slug': slug,
+                    'platform': self.platform,
                     'title': media_data.get('title'),
                     'type': media_data.get('type', 'unknown'),
                     'duration': media_data.get('duration'),
@@ -344,6 +353,7 @@ class ContentScraper:
                 # Prepare content data
                 content_data = {
                     'slug': slug,
+                    'platform': self.platform,
                     'title': media_data.get('title'),
                     'type': media_data.get('type', 'unknown'),
                     'duration': media_data.get('duration'),
@@ -438,6 +448,7 @@ class ContentScraper:
                         # Prepare content data
                         content_data = {
                             'slug': episode_slug,
+                            'platform': self.platform,
                             'title': episode_metadata.get('title') or episode.get('episode_title'),
                             'type': 'episode',
                             'duration': episode_metadata.get('duration') or episode.get('duration'),
@@ -479,6 +490,7 @@ class ContentScraper:
                         # Prepare content data
                         content_data = {
                             'slug': episode_slug,
+                            'platform': self.platform,
                             'title': episode_metadata.get('title') or episode.get('episode_title'),
                             'type': 'episode',
                             'duration': episode_metadata.get('duration') or episode.get('duration'),
@@ -529,7 +541,7 @@ class ContentScraper:
             series_slugs: Optional list of series slugs to check
         """
         print("=" * 80)
-        print("Starting Primeran Content Scraper")
+        print(f"Starting {self.platform} Content Scraper")
         print("=" * 80)
         
         # Discover content if not provided

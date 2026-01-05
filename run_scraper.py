@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Main entry point for Primeran content scraper
+Main entry point for EITB platform content scraper
 
 Usage:
-    python run_scraper.py [--test] [--media-slug SLUG] [--series-slug SLUG]
+    python run_scraper.py [--platform PLATFORM] [--test] [--media-slug SLUG] [--series-slug SLUG]
 """
 
 import argparse
@@ -13,14 +13,15 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.primeran_api import PrimeranAPI
 from src.database import ContentDatabase
 from src.scraper import ContentScraper
 from src.exporter import JSONExporter
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Scrape Primeran.eus content and check geo-restrictions')
+    parser = argparse.ArgumentParser(description='Scrape EITB platform content and check geo-restrictions')
+    parser.add_argument('--platform', choices=['primeran', 'makusi'], default='primeran',
+                        help='Platform to scrape (default: primeran)')
     parser.add_argument('--test', action='store_true', help='Run with test data (few items)')
     parser.add_argument('--media-slug', help='Check specific media slug')
     parser.add_argument('--series-slug', help='Check specific series slug')
@@ -34,9 +35,15 @@ def main():
     args = parser.parse_args()
     
     try:
-        # Initialize components
-        print("Initializing API client...")
-        api = PrimeranAPI()
+        # Initialize API client based on platform
+        print(f"Initializing {args.platform} API client...")
+        if args.platform == 'makusi':
+            from src.makusi_api import MakusiAPI
+            api = MakusiAPI()
+        else:
+            from src.primeran_api import PrimeranAPI
+            api = PrimeranAPI()
+        
         api.login()
         print("✓ Authenticated")
         
@@ -56,8 +63,13 @@ def main():
         if args.test:
             # Test with known content
             print("\n[TEST MODE] Running with test data...")
-            test_media = ['la-infiltrada', 'itoiz-udako-sesioak', 'gatibu-azken-kontzertua-zuzenean']
-            test_series = ['lau-hankan', 'krimenak-gure-kronika-beltza']
+            if args.platform == 'makusi':
+                test_media = ['zuk-zeuk-egin-1-domino-harriekin', 'ikusi-makusiren-aurkezpena', 'twin-melody-gabon-kantak']
+                test_series = ['goazen-d12', 'kody-kapow']
+            else:
+                # Primeran test data
+                test_media = ['la-infiltrada', 'itoiz-udako-sesioak', 'gatibu-azken-kontzertua-zuzenean']
+                test_series = ['lau-hankan', 'krimenak-gure-kronika-beltza']
             scraper.scrape_all(media_slugs=test_media, series_slugs=test_series)
         elif args.media_slug:
             print(f"\nChecking media: {args.media_slug}")

@@ -426,13 +426,16 @@ class ContentDatabase:
         stats['by_platform'] = {row[0]: row[1] for row in cursor.fetchall()}
         
         # Geo-restricted
-        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted = 1", params)
+        geo_where = "WHERE is_geo_restricted = 1" if not where_clause else f"{where_clause} AND is_geo_restricted = 1"
+        cursor.execute(f"SELECT COUNT(*) FROM content {geo_where}", params)
         stats['geo_restricted_count'] = cursor.fetchone()[0]
         
-        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted = 0", params)
+        accessible_where = "WHERE is_geo_restricted = 0" if not where_clause else f"{where_clause} AND is_geo_restricted = 0"
+        cursor.execute(f"SELECT COUNT(*) FROM content {accessible_where}", params)
         stats['accessible_count'] = cursor.fetchone()[0]
         
-        cursor.execute(f"SELECT COUNT(*) FROM content{where_clause} AND is_geo_restricted IS NULL", params)
+        unknown_where = "WHERE is_geo_restricted IS NULL" if not where_clause else f"{where_clause} AND is_geo_restricted IS NULL"
+        cursor.execute(f"SELECT COUNT(*) FROM content {unknown_where}", params)
         stats['unknown_count'] = cursor.fetchone()[0]
         
         # Percentage

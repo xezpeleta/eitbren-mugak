@@ -120,6 +120,40 @@ class JSONExporter:
         except (json.JSONDecodeError, KeyError, TypeError):
             return []
     
+    def _get_content_url(self, item: Dict[str, Any]) -> str:
+        """
+        Generate content URL based on platform and content type
+        
+        Args:
+            item: Content item dictionary
+            
+        Returns:
+            Content URL
+        """
+        platform = item.get('platform', 'primeran.eus')
+        slug = item['slug']
+        content_type = item.get('type', '')
+        
+        if platform == 'makusi.eus':
+            # Makusi uses /ikusi/m/ for media and /ikusi/s/ for series
+            # For episodes, we use the episode slug which should work with /ikusi/w/
+            if content_type == 'episode':
+                return f"https://makusi.eus/ikusi/w/{slug}"
+            elif 'series' in content_type.lower() or item.get('series_slug'):
+                # If it's part of a series, check if it's the series itself or an episode
+                if item.get('series_slug') and item.get('series_slug') != slug:
+                    # It's an episode
+                    return f"https://makusi.eus/ikusi/w/{slug}"
+                else:
+                    # It's a series
+                    return f"https://makusi.eus/ikusi/s/{slug}"
+            else:
+                # Regular media
+                return f"https://makusi.eus/ikusi/m/{slug}"
+        else:
+            # Primeran uses /m/ for all content
+            return f"https://primeran.eus/m/{slug}"
+    
     def export_all(self) -> Dict[str, Any]:
         """
         Export all content to JSON
@@ -169,7 +203,8 @@ class JSONExporter:
                 # Medium priority metadata
                 'available_until': self._extract_from_metadata(item, 'available_until'),
                 'languages': self._extract_languages(item),
-                'content_url': f"https://primeran.eus/m/{item['slug']}"
+                'platform': item.get('platform', 'primeran.eus'),
+                'content_url': self._get_content_url(item)
             }
             export_data['content'].append(content_item)
         
@@ -240,7 +275,8 @@ class JSONExporter:
                 'access_restriction': self._extract_from_metadata(item, 'access_restriction'),
                 'available_until': self._extract_from_metadata(item, 'available_until'),
                 'languages': self._extract_languages(item),
-                'content_url': f"https://primeran.eus/m/{item['slug']}"
+                'platform': item.get('platform', 'primeran.eus'),
+                'content_url': self._get_content_url(item)
             }
             export_data['content'].append(content_item)
         

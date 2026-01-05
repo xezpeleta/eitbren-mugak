@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Primeran.eus API Client
+Makusi.eus API Client
 
-Handles authentication and API interactions with Primeran.eus platform.
+Handles authentication and API interactions with Makusi.eus platform.
+Uses shared Gigya SSO with Primeran.eus.
 """
 
 import requests
@@ -14,43 +15,46 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class PrimeranAPI:
-    """API client for Primeran.eus"""
+class MakusiAPI:
+    """API client for Makusi.eus"""
     
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None):
         """
         Initialize API client
         
         Args:
-            username: Primeran username/email (defaults to PRIMERAN_USERNAME env var)
-            password: Primeran password (defaults to PRIMERAN_PASSWORD env var)
+            username: Makusi username/email (defaults to PRIMERAN_USERNAME env var, shared SSO)
+            password: Makusi password (defaults to PRIMERAN_PASSWORD env var, shared SSO)
         """
+        # Makusi uses the same credentials as Primeran (shared SSO)
         self.username = username or os.getenv('PRIMERAN_USERNAME')
         self.password = password or os.getenv('PRIMERAN_PASSWORD')
         
         if not self.username or not self.password:
             raise ValueError(
                 "Username and password required. "
-                "Set PRIMERAN_USERNAME and PRIMERAN_PASSWORD in .env file"
+                "Set PRIMERAN_USERNAME and PRIMERAN_PASSWORD in .env file "
+                "(shared SSO credentials work for both Primeran and Makusi)"
             )
         
         self.session = requests.Session()
-        self.gigya_api_key = "4_iXtBSPAhyZYN6kg3DlaQuQ"
-        self.base_url = "https://primeran.eus/api/v1"
+        self.gigya_api_key = "4_OrNV-xF_hgF-IKSFkQrJxg"  # Makusi-specific API key
+        self.base_url = "https://makusi.eus/api/v1"
         self.authenticated = False
     
     @property
     def platform(self) -> str:
         """Return platform identifier"""
-        return 'primeran.eus'
-        
+        return 'makusi.eus'
+    
     def login(self) -> bool:
         """
-        Authenticate with Primeran.eus using Gigya SSO
+        Authenticate with Makusi.eus using Gigya SSO (shared with Primeran)
         
         Returns:
             True if authentication successful, False otherwise
         """
+        # Makusi uses the same login endpoint as Primeran (shared SSO)
         login_url = "https://login.primeran.eus/accounts.login"
         
         response = self.session.post(login_url, data={
@@ -79,7 +83,7 @@ class PrimeranAPI:
         Get media details
         
         Args:
-            slug: Media slug (e.g., 'la-infiltrada')
+            slug: Media slug (e.g., 'heidi-katamotzaren-erreskatea')
             
         Returns:
             Media metadata dictionary
@@ -94,7 +98,7 @@ class PrimeranAPI:
         Get series details including all seasons and episodes
         
         Args:
-            slug: Series slug (e.g., 'lau-hankan')
+            slug: Series slug (e.g., 'goazen-d12')
             
         Returns:
             Series metadata dictionary with seasons and episodes
@@ -133,7 +137,7 @@ class PrimeranAPI:
         """
         self.ensure_authenticated()
         
-        manifest_url = f"https://primeran.eus/manifests/{slug}/{language}/widevine/dash.mpd"
+        manifest_url = f"https://makusi.eus/manifests/{slug}/{language}/widevine/dash.mpd"
         
         try:
             response = self.session.get(manifest_url, timeout=10)

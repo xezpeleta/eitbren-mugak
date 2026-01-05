@@ -1,15 +1,19 @@
 {
-  "export_date": "2026-01-05T02:51:32.345596",
+  "export_date": "2026-01-05T18:14:05.854928",
   "statistics": {
-    "total_content": 6294,
+    "total_content": 6357,
     "by_type": {
-      "episode": 5903,
-      "vod": 391
+      "episode": 5963,
+      "vod": 394
     },
-    "geo_restricted_count": 1503,
-    "accessible_count": 4791,
+    "by_platform": {
+      "makusi.eus": 63,
+      "primeran.eus": 6294
+    },
+    "geo_restricted_count": 1555,
+    "accessible_count": 4802,
     "unknown_count": 0,
-    "geo_restricted_percentage": 23.879885605338416,
-    "last_check": "2026-01-05T02:51:06.512614"
+    "geo_restricted_percentage": 24.461223847726917,
+    "last_check": "2026-01-05T18:13:29.423470"
   }
 }

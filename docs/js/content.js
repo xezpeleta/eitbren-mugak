@@ -83,7 +83,7 @@ async function loadContent() {
     } catch (error) {
         console.error('Error loading content:', error);
         document.getElementById('content-tbody').innerHTML = 
-            '<tr><td colspan="10" style="color: red;">Error loading content. Please ensure data/content.json exists.</td></tr>';
+            '<tr><td colspan="11" style="color: red;">Error loading content. Please ensure data/content.json exists.</td></tr>';
     }
 }
 
@@ -142,6 +142,7 @@ function populateFilters() {
     populateTypeFilter();
     populateAgeRatingFilter();
     populateLanguageFilter();
+    populatePlatformFilter();
 }
 
 // Populate type filter dropdown
@@ -189,6 +190,21 @@ function populateLanguageFilter() {
     });
 }
 
+// Populate platform filter
+function populatePlatformFilter() {
+    const platformFilter = document.getElementById('platform-filter');
+    const platforms = [...new Set(allContent.map(item => item.platform).filter(Boolean))].sort();
+    
+    platforms.forEach(platform => {
+        const option = document.createElement('option');
+        option.value = platform;
+        // Display name: extract domain name (e.g., "makusi.eus" -> "Makusi")
+        const displayName = platform.replace('.eus', '').replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        option.textContent = displayName;
+        platformFilter.appendChild(option);
+    });
+}
+
 // Apply filters
 function applyFilters() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -197,15 +213,18 @@ function applyFilters() {
     const ageRatingFilter = document.getElementById('age-rating-filter').value;
     const languageFilter = document.getElementById('language-filter').value;
     
+    // Get platform filter
+    const platformFilter = document.getElementById('platform-filter').value;
+    
     // Filter standalone content
     filteredGroupedContent.standalone = groupedContent.standalone.filter(item => {
-        return matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter);
+        return matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter);
     });
     
     // Filter series and their episodes
     filteredGroupedContent.series = groupedContent.series.map(series => {
         const filteredEpisodes = series.episodes.filter(episode => {
-            return matchesFilters(episode, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter);
+            return matchesFilters(episode, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter);
         });
         
         // Only include series if it has matching episodes
@@ -375,7 +394,7 @@ function renderTable() {
     const totalRows = allRows.length;
     
     if (totalRows === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">No content found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">No content found matching filters.</td></tr>';
         renderPagination(1, 0, 0, 0);
         return;
     }
@@ -463,6 +482,10 @@ function renderSeriesRow(series, isExpanded) {
     
     const expandIcon = isExpanded ? '▼' : '▶';
     
+    // Get platform from first episode if available
+    const platform = series.episodes && series.episodes.length > 0 ? series.episodes[0].platform : '-';
+    const platformDisplay = platform !== '-' ? platform.replace('.eus', '').replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-';
+    
     return `
         <tr class="series-row">
             <td>
@@ -471,6 +494,7 @@ function renderSeriesRow(series, isExpanded) {
                 </button>
             </td>
             <td class="thumbnail-cell">${thumbnailHtml}</td>
+            <td>${escapeHtml(platformDisplay)}</td>
             <td><strong>${escapeHtml(series.series_title)}</strong> <span class="series-episode-count">(${totalCount} atal)</span></td>
             <td>Series</td>
             <td>-</td>
@@ -524,10 +548,15 @@ function renderContentRow(item, isEpisode, isExpanded) {
     const rowClass = isEpisode ? 'episode-row' : '';
     const indentStyle = isEpisode && isExpanded ? 'padding-left: 2rem;' : '';
     
+    // Platform display
+    const platform = item.platform || '-';
+    const platformDisplay = platform !== '-' ? platform.replace('.eus', '').replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-';
+    
     return `
         <tr class="${rowClass}" style="${indentStyle}">
             <td></td>
             <td class="thumbnail-cell">${thumbnailHtml}</td>
+            <td>${escapeHtml(platformDisplay)}</td>
             <td>${titleHtml}</td>
             <td>${escapeHtml(item.type || 'unknown')}</td>
             <td>${ageRatingHtml}</td>
@@ -615,6 +644,7 @@ function clearFilters() {
     document.getElementById('restriction-filter').value = '';
     document.getElementById('age-rating-filter').value = '';
     document.getElementById('language-filter').value = '';
+    document.getElementById('platform-filter').value = '';
     currentPage = 1;
     applyFilters();
 }
@@ -629,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('restriction-filter').addEventListener('change', applyFilters);
     document.getElementById('age-rating-filter').addEventListener('change', applyFilters);
     document.getElementById('language-filter').addEventListener('change', applyFilters);
+    document.getElementById('platform-filter').addEventListener('change', applyFilters);
     document.getElementById('clear-filters').addEventListener('click', clearFilters);
     
     // Pagination controls
