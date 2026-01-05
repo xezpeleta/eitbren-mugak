@@ -120,19 +120,57 @@ class JSONExporter:
         except (json.JSONDecodeError, KeyError, TypeError):
             return []
     
+    def _parse_platform(self, platform_value: Any) -> list:
+        """
+        Parse platform value (string, JSON string, or list) to list
+        
+        Args:
+            platform_value: Platform value from database
+            
+        Returns:
+            List of platform strings
+        """
+        if isinstance(platform_value, list):
+            return platform_value
+        elif isinstance(platform_value, str):
+            try:
+                parsed = json.loads(platform_value)
+                if isinstance(parsed, list):
+                    return parsed
+                else:
+                    return [parsed] if parsed else ['primeran.eus']
+            except (json.JSONDecodeError, TypeError):
+                return [platform_value] if platform_value else ['primeran.eus']
+        else:
+            return ['primeran.eus']
+    
     def _get_content_url(self, item: Dict[str, Any]) -> str:
         """
         Generate content URL based on platform and content type
+        Prefers URL from metadata.platform_urls if available
         
         Args:
             item: Content item dictionary
             
         Returns:
-            Content URL
+            Content URL (from metadata if available, otherwise generated)
         """
-        platform = item.get('platform', 'primeran.eus')
         slug = item['slug']
         content_type = item.get('type', '')
+        
+        # Check if platform_urls exist in metadata
+        platform_urls = self._extract_from_metadata(item, 'platform_urls')
+        if isinstance(platform_urls, dict) and platform_urls:
+            # Use URL from first platform in the list
+            platforms = self._parse_platform(item.get('platform', 'primeran.eus'))
+            if platforms:
+                first_platform = platforms[0]
+                if first_platform in platform_urls:
+                    return platform_urls[first_platform]
+        
+        # Fallback: generate URL from first platform
+        platforms = self._parse_platform(item.get('platform', 'primeran.eus'))
+        platform = platforms[0] if platforms else 'primeran.eus'
         
         if platform == 'makusi.eus':
             # Makusi uses /ikusi/m/ for media and /ikusi/s/ for series
@@ -203,7 +241,8 @@ class JSONExporter:
                 # Medium priority metadata
                 'available_until': self._extract_from_metadata(item, 'available_until'),
                 'languages': self._extract_languages(item),
-                'platform': item.get('platform', 'primeran.eus'),
+                'platform': self._parse_platform(item.get('platform', 'primeran.eus')),  # Export as array
+                'media_type': self._extract_from_metadata(item, 'media_type'),  # audio or video
                 'content_url': self._get_content_url(item)
             }
             export_data['content'].append(content_item)
@@ -275,7 +314,7 @@ class JSONExporter:
                 'access_restriction': self._extract_from_metadata(item, 'access_restriction'),
                 'available_until': self._extract_from_metadata(item, 'available_until'),
                 'languages': self._extract_languages(item),
-                'platform': item.get('platform', 'primeran.eus'),
+                'platform': self._parse_platform(item.get('platform', 'primeran.eus')),  # Export as array
                 'media_type': self._extract_from_metadata(item, 'media_type'),  # audio or video
                 'content_url': self._get_content_url(item)
             }

@@ -83,7 +83,7 @@ async function loadContent() {
     } catch (error) {
         console.error('Error loading content:', error);
         document.getElementById('content-tbody').innerHTML = 
-            '<tr><td colspan="11" style="color: red;">Error loading content. Please ensure data/content.json exists.</td></tr>';
+            '<tr><td colspan="10" style="color: red;">Error loading content. Please ensure data/content.json exists.</td></tr>';
     }
 }
 
@@ -91,11 +91,17 @@ async function loadContent() {
 function groupContentBySeries() {
     const episodes = [];
     const standalone = [];
-    const seriesMap = new Map();
+    const seriesRecords = new Map(); // Map of series records (type === 'series')
+    const seriesMap = new Map(); // Map of series groups (from episodes)
     
-    // Separate episodes from standalone content
+    // First pass: separate content by type
     allContent.forEach(item => {
-        if (item.type === 'episode' && item.series_slug) {
+        if (item.type === 'series') {
+            // Store series records separately
+            seriesRecords.set(item.slug, item);
+        } else if (item.series_slug) {
+            // Group any content with series_slug as episodes (even if type is 'unknown' or other)
+            // This handles cases where episodes were incorrectly saved with type='unknown'
             episodes.push(item);
         } else {
             standalone.push(item);
@@ -106,15 +112,19 @@ function groupContentBySeries() {
     episodes.forEach(episode => {
         const seriesSlug = episode.series_slug;
         if (!seriesMap.has(seriesSlug)) {
+            // Check if we have a series record for this slug
+            const seriesRecord = seriesRecords.get(seriesSlug);
+            
             seriesMap.set(seriesSlug, {
                 series_slug: seriesSlug,
-                series_title: episode.series_title || seriesSlug,
+                series_title: seriesRecord ? seriesRecord.title : (episode.series_title || seriesSlug),
                 episodes: [],
                 episode_count: 0,
                 restricted_count: 0,
                 accessible_count: 0,
                 unknown_count: 0,
-                is_expanded: false
+                is_expanded: false,
+                platform: seriesRecord ? seriesRecord.platform : episode.platform // Use series record platform if available
             });
         }
         
@@ -128,6 +138,24 @@ function groupContentBySeries() {
             series.accessible_count++;
         } else {
             series.unknown_count++;
+        }
+    });
+    
+    // Also add series records that don't have episodes yet (if any)
+    seriesRecords.forEach((seriesRecord, slug) => {
+        if (!seriesMap.has(slug)) {
+            // Series record exists but no episodes found - create empty series entry
+            seriesMap.set(slug, {
+                series_slug: slug,
+                series_title: seriesRecord.title || slug,
+                episodes: [],
+                episode_count: 0,
+                restricted_count: 0,
+                accessible_count: 0,
+                unknown_count: 0,
+                is_expanded: false,
+                platform: seriesRecord.platform
+            });
         }
     });
     
@@ -194,7 +222,23 @@ function populateLanguageFilter() {
 // Populate platform filter
 function populatePlatformFilter() {
     const platformFilter = document.getElementById('platform-filter');
-    const platforms = [...new Set(allContent.map(item => item.platform).filter(Boolean))].sort();
+    const platformsSet = new Set();
+    
+    // Clear existing options except "Guztia"
+    while (platformFilter.children.length > 1) {
+        platformFilter.removeChild(platformFilter.lastChild);
+    }
+    
+    // Extract platforms from array (platform is now a JSON array)
+    allContent.forEach(item => {
+        const itemPlatforms = Array.isArray(item.platform) ? item.platform : 
+                             (typeof item.platform === 'string' ? JSON.parse(item.platform) : []);
+        itemPlatforms.forEach(p => {
+            if (p) platformsSet.add(p);
+        });
+    });
+    
+    const platforms = [...platformsSet].sort();
     
     platforms.forEach(platform => {
         const option = document.createElement('option');
@@ -209,12 +253,24 @@ function populatePlatformFilter() {
 // Populate media type filter
 function populateMediaTypeFilter() {
     const mediaTypeFilter = document.getElementById('media-type-filter');
+    
+    // Clear existing options except "Guztia"
+    while (mediaTypeFilter.children.length > 1) {
+        mediaTypeFilter.removeChild(mediaTypeFilter.lastChild);
+    }
+    
     const mediaTypes = [...new Set(allContent.map(item => item.media_type).filter(Boolean))].sort();
+    
+    // Map English values to Basque display names
+    const mediaTypeLabels = {
+        'audio': 'Audio',
+        'video': 'Bideo'
+    };
     
     mediaTypes.forEach(mediaType => {
         const option = document.createElement('option');
         option.value = mediaType;
-        option.textContent = mediaType.charAt(0).toUpperCase() + mediaType.slice(1);
+        option.textContent = mediaTypeLabels[mediaType] || mediaType.charAt(0).toUpperCase() + mediaType.slice(1);
         mediaTypeFilter.appendChild(option);
     });
 }
@@ -230,15 +286,18 @@ function applyFilters() {
     // Get platform filter
     const platformFilter = document.getElementById('platform-filter').value;
     
+    // Get media type filter
+    const mediaTypeFilter = document.getElementById('media-type-filter').value;
+    
     // Filter standalone content
     filteredGroupedContent.standalone = groupedContent.standalone.filter(item => {
-        return matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter);
+        return matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter, mediaTypeFilter);
     });
     
     // Filter series and their episodes
     filteredGroupedContent.series = groupedContent.series.map(series => {
         const filteredEpisodes = series.episodes.filter(episode => {
-            return matchesFilters(episode, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter);
+            return matchesFilters(episode, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter, mediaTypeFilter);
         });
         
         // Only include series if it has matching episodes
@@ -272,7 +331,7 @@ function applyFilters() {
 }
 
 // Check if item matches all filters
-function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter) {
+function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter, mediaTypeFilter) {
     // Search filter
     if (searchTerm) {
         const searchableText = [
@@ -309,6 +368,31 @@ function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRati
         if (!item.languages || !Array.isArray(item.languages) || !item.languages.includes(languageFilter)) {
             return false;
         }
+    }
+    
+    // Platform filter - check if platform array includes the filter value
+    if (platformFilter) {
+        let itemPlatforms = [];
+        if (Array.isArray(item.platform)) {
+            itemPlatforms = item.platform;
+        } else if (typeof item.platform === 'string') {
+            try {
+                itemPlatforms = JSON.parse(item.platform);
+                if (!Array.isArray(itemPlatforms)) {
+                    itemPlatforms = [item.platform];
+                }
+            } catch {
+                itemPlatforms = [item.platform];
+            }
+        }
+        if (!itemPlatforms.includes(platformFilter)) {
+            return false;
+        }
+    }
+    
+    // Media type filter (audio/video)
+    if (mediaTypeFilter && item.media_type !== mediaTypeFilter) {
+        return false;
     }
     
     return true;
@@ -408,7 +492,7 @@ function renderTable() {
     const totalRows = allRows.length;
     
     if (totalRows === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="loading">No content found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No content found matching filters.</td></tr>';
         renderPagination(1, 0, 0, 0);
         return;
     }
@@ -468,6 +552,26 @@ function renderTable() {
     renderPagination(pageCount, totalRows, startIndex, endIndex);
 }
 
+// Helper function to render platform badges
+function renderPlatformBadges(platforms) {
+    if (!platforms || platforms.length === 0) {
+        return '-';
+    }
+    
+    const badges = platforms.map(platform => {
+        // Extract platform name (e.g., "primeran.eus" -> "primeran")
+        const platformName = platform.replace('.eus', '').toLowerCase();
+        // Map to CSS class
+        const badgeClass = `platform-badge-${platformName}`;
+        // Display name (capitalize first letter)
+        const displayName = platformName.charAt(0).toUpperCase() + platformName.slice(1);
+        
+        return `<span class="platform-badge ${badgeClass}">${escapeHtml(displayName)}</span>`;
+    });
+    
+    return badges.join(' ');
+}
+
 // Render series row
 function renderSeriesRow(series, isExpanded) {
     const restrictedCount = series.restricted_count;
@@ -497,9 +601,25 @@ function renderSeriesRow(series, isExpanded) {
     const expandIcon = isExpanded ? '▼' : '▶';
     
     // Get platform from first episode if available
-    const platform = series.episodes && series.episodes.length > 0 ? series.episodes[0].platform : '-';
-    const platformDisplay = platform !== '-' ? platform.replace('.eus', '').replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-';
+    const firstEpisodePlatform = series.episodes && series.episodes.length > 0 ? series.episodes[0].platform : null;
+    let platforms = [];
+    if (firstEpisodePlatform) {
+        if (Array.isArray(firstEpisodePlatform)) {
+            platforms = firstEpisodePlatform;
+        } else if (typeof firstEpisodePlatform === 'string') {
+            try {
+                const parsed = JSON.parse(firstEpisodePlatform);
+                platforms = Array.isArray(parsed) ? parsed : [firstEpisodePlatform];
+            } catch {
+                platforms = [firstEpisodePlatform];
+            }
+        }
+    }
+    const platformDisplay = renderPlatformBadges(platforms);
     
+    // IMPORTANT: Column order must match HTML header in index.html
+    // 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
+    // 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
     return `
         <tr class="series-row">
             <td>
@@ -508,7 +628,6 @@ function renderSeriesRow(series, isExpanded) {
                 </button>
             </td>
             <td class="thumbnail-cell">${thumbnailHtml}</td>
-            <td>${escapeHtml(platformDisplay)}</td>
             <td><strong>${escapeHtml(series.series_title)}</strong> <span class="series-episode-count">(${totalCount} atal)</span></td>
             <td>Series</td>
             <td>-</td>
@@ -516,17 +635,18 @@ function renderSeriesRow(series, isExpanded) {
             <td>-</td>
             <td>-</td>
             <td>${restrictionSummary || '-'}</td>
-            <td>-</td>
+            <td>${platformDisplay}</td>
         </tr>
     `;
 }
 
 // Render content row
 function renderContentRow(item, isEpisode, isExpanded) {
+    // Only show "Murriztua" or "Murriztu gabea", not "Ezezaguna"
     const restrictedStatus = item.is_geo_restricted === true ? 'Murriztua' :
-                            item.is_geo_restricted === false ? 'Murriztu-gabea' : 'Ezezaguna';
+                            item.is_geo_restricted === false ? 'Murriztu gabea' : '-';
     const statusClass = item.is_geo_restricted === true ? 'status-restricted' :
-                       item.is_geo_restricted === false ? 'status-accessible' : 'status-unknown';
+                       item.is_geo_restricted === false ? 'status-accessible' : '';
     
     const duration = item.duration ? formatDuration(item.duration) : '-';
     
@@ -537,10 +657,23 @@ function renderContentRow(item, isEpisode, isExpanded) {
     }
     
     // Title with link and tooltip
-    let titleHtml = escapeHtml(item.title || item.slug);
+    // Handle null/undefined explicitly - JSON null becomes JavaScript null
+    const title = (item.title != null && item.title !== '') ? item.title : 
+                  (item.slug != null && item.slug !== '') ? item.slug :
+                  (item.series_title != null && item.series_title !== '') ? item.series_title : '-';
+    
+    // Debug: Log if title seems wrong
+    if (item.slug && item.slug.includes('christmas') && title === 'vod') {
+        console.error('Title issue detected:', { slug: item.slug, title: item.title, type: item.type, computedTitle: title });
+    }
+    
+    let titleHtml = escapeHtml(title);
     if (item.content_url) {
-        titleHtml = `<a href="${escapeHtml(item.content_url)}" target="_blank" class="content-link" title="${escapeHtml(item.description || item.title || '')}">${titleHtml} <span class="external-link-icon">↗</span></a>`;
-    } else if (item.description) {
+        const linkTitle = (item.description != null && item.description !== '') ? item.description :
+                          (item.title != null && item.title !== '') ? item.title :
+                          (item.slug != null && item.slug !== '') ? item.slug : '';
+        titleHtml = `<a href="${escapeHtml(item.content_url)}" target="_blank" class="content-link" title="${escapeHtml(linkTitle)}">${titleHtml} <span class="external-link-icon">↗</span></a>`;
+    } else if (item.description != null && item.description !== '') {
         titleHtml = `<span class="content-title-tooltip" title="${escapeHtml(item.description)}">${titleHtml}</span>`;
     }
     
@@ -562,23 +695,43 @@ function renderContentRow(item, isEpisode, isExpanded) {
     const rowClass = isEpisode ? 'episode-row' : '';
     const indentStyle = isEpisode && isExpanded ? 'padding-left: 2rem;' : '';
     
-    // Platform display
-    const platform = item.platform || '-';
-    const platformDisplay = platform !== '-' ? platform.replace('.eus', '').replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-';
+    // Platform display - handle as array
+    let itemPlatforms = [];
+    if (item.platform !== undefined && item.platform !== null) {
+        if (Array.isArray(item.platform)) {
+            itemPlatforms = item.platform;
+        } else if (typeof item.platform === 'string') {
+            try {
+                const parsed = JSON.parse(item.platform);
+                itemPlatforms = Array.isArray(parsed) ? parsed : [item.platform];
+            } catch {
+                itemPlatforms = [item.platform];
+            }
+        }
+    }
     
+    // Ensure we have a valid array
+    if (!Array.isArray(itemPlatforms)) {
+        itemPlatforms = [];
+    }
+    
+    const platformDisplay = renderPlatformBadges(itemPlatforms) || '-';
+    
+    // IMPORTANT: Column order must match HTML header in index.html
+    // 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
+    // 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
     return `
         <tr class="${rowClass}" style="${indentStyle}">
             <td></td>
             <td class="thumbnail-cell">${thumbnailHtml}</td>
-            <td>${escapeHtml(platformDisplay)}</td>
             <td>${titleHtml}</td>
             <td>${escapeHtml(item.type || 'unknown')}</td>
             <td>${ageRatingHtml}</td>
             <td>${languagesHtml}</td>
             <td>${duration}</td>
             <td>${item.year || '-'}</td>
-            <td><span class="status-badge ${statusClass}">${restrictedStatus}</span></td>
-            <td>${escapeHtml(item.restriction_type || '-')}</td>
+            <td>${restrictedStatus !== '-' ? `<span class="status-badge ${statusClass}">${restrictedStatus}</span>` : '-'}</td>
+            <td>${platformDisplay}</td>
         </tr>
     `;
 }

@@ -40,6 +40,55 @@ class ContentScraper:
             'errors': 0
         }
     
+    def _generate_platform_url(self, slug: str, content_type: str, series_slug: Optional[str] = None) -> str:
+        """
+        Generate platform-specific URL for content
+        
+        Args:
+            slug: Content slug
+            content_type: Content type (e.g., 'episode', 'vod')
+            series_slug: Series slug if episode
+            
+        Returns:
+            Platform-specific content URL
+        """
+        if self.platform == 'makusi.eus':
+            if content_type == 'episode' or series_slug:
+                return f"https://makusi.eus/ikusi/w/{slug}"
+            elif 'series' in content_type.lower():
+                return f"https://makusi.eus/ikusi/s/{slug}"
+            else:
+                return f"https://makusi.eus/ikusi/m/{slug}"
+        else:
+            # Primeran uses /m/ for all content
+            return f"https://primeran.eus/m/{slug}"
+    
+    def _add_platform_url_to_metadata(self, metadata: Dict[str, Any], slug: str, content_type: str, series_slug: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Add platform-specific URL to metadata
+        
+        Args:
+            metadata: Metadata dictionary
+            slug: Content slug
+            content_type: Content type
+            series_slug: Series slug if episode
+            
+        Returns:
+            Updated metadata dictionary
+        """
+        if not isinstance(metadata, dict):
+            metadata = {}
+        
+        # Initialize platform_urls if not exists
+        if 'platform_urls' not in metadata:
+            metadata['platform_urls'] = {}
+        
+        # Add URL for current platform
+        url = self._generate_platform_url(slug, content_type, series_slug)
+        metadata['platform_urls'][self.platform] = url
+        
+        return metadata
+    
     def _sleep(self):
         """Sleep to avoid rate limiting"""
         if self.delay > 0:
@@ -225,10 +274,13 @@ class ContentScraper:
         
         try:
             # Get media details
-            response = self.api.session.get(f"{self.api.base_url}/media/{slug}")
+            # Note: Use /api/v1/media/{slug} for Makusi, but base_url already includes /api/v1
+            # So we need to check if base_url ends with /api/v1 and adjust accordingly
+            api_endpoint = f"{self.api.base_url}/media/{slug}"
+            response = self.api.session.get(api_endpoint)
             self._sleep()
             
-            # Handle different response codes
+            # Handle different response codes BEFORE raise_for_status()
             if response.status_code == 404:
                 # Item doesn't exist (might be a collection/page, not actual media)
                 print(f"    ⚠️  Skipping {slug}: Not found (likely not a media item)")
@@ -237,22 +289,52 @@ class ContentScraper:
             if response.status_code == 403:
                 # Geo-restricted at API level
                 print(f"    🚫 {slug}: Geo-restricted at API level (403)")
+                # Initialize variables
+                content_type = 'unknown'
+                series_slug_from_metadata = None
+                series_title_from_metadata = None
+                
                 try:
                     error_data = response.json()
                     error_msg = error_data.get('message', 'Geo-restricted')
+                    # Try to get metadata from error response if available
+                    # Some APIs return partial metadata even on 403
+                    if 'season_data' in error_data:
+                        # This might be an episode - check season_data
+                        season_data = error_data.get('season_data', {})
+                        if isinstance(season_data, dict) and season_data.get('series_slug'):
+                            content_type = 'episode'
+                            series_slug_from_metadata = season_data.get('series_slug')
+                            series_title_from_metadata = season_data.get('series_title')
+                        else:
+                            content_type = 'unknown'
+                    elif error_data.get('collection') == 'series':
+                        content_type = 'series'
+                    else:
+                        content_type = 'unknown'
                 except:
                     error_msg = 'Geo-restricted'
+                    content_type = 'unknown'
                 
                 # Create content data with limited info
+                metadata = {'error': error_msg, 'api_restricted': True}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, content_type)
+                
                 content_data = {
                     'slug': slug,
                     'platform': self.platform,
                     'title': slug.replace('-', ' ').title(),  # Best guess from slug
-                    'type': 'unknown',
+                    'type': content_type,
                     'is_geo_restricted': True,
                     'restriction_type': 'api_403',
-                    'metadata': {'error': error_msg, 'api_restricted': True}
+                    'metadata': metadata
                 }
+                
+                # Add series information if this is an episode
+                if content_type == 'episode' and series_slug_from_metadata:
+                    content_data['series_slug'] = series_slug_from_metadata
+                    if series_title_from_metadata:
+                        content_data['series_title'] = series_title_from_metadata
                 
                 # Save to database
                 self.db.upsert_content(content_data)
@@ -271,22 +353,51 @@ class ContentScraper:
             if response.status_code == 500:
                 # Server error - often indicates geo-restriction when accessing from restricted regions
                 print(f"    🚫 {slug}: Server error (500) - likely geo-restricted")
+                # Initialize variables
+                content_type = 'unknown'
+                series_slug_from_metadata = None
+                series_title_from_metadata = None
+                
                 try:
                     error_data = response.json()
                     error_msg = error_data.get('message', 'Server error - likely geo-restricted')
+                    # Try to get metadata from error response if available
+                    if 'season_data' in error_data:
+                        # This might be an episode - check season_data
+                        season_data = error_data.get('season_data', {})
+                        if isinstance(season_data, dict) and season_data.get('series_slug'):
+                            content_type = 'episode'
+                            series_slug_from_metadata = season_data.get('series_slug')
+                            series_title_from_metadata = season_data.get('series_title')
+                        else:
+                            content_type = 'unknown'
+                    elif error_data.get('collection') == 'series':
+                        content_type = 'series'
+                    else:
+                        content_type = 'unknown'
                 except:
                     error_msg = response.text[:200] if response.text else 'Server error - likely geo-restricted'
+                    content_type = 'unknown'
                 
                 # Create content data with limited info
+                metadata = {'error': error_msg, 'api_restricted': True, 'status_code': 500}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, content_type)
+                
                 content_data = {
                     'slug': slug,
                     'platform': self.platform,
                     'title': slug.replace('-', ' ').title(),  # Best guess from slug
-                    'type': 'unknown',
+                    'type': content_type,
                     'is_geo_restricted': True,
                     'restriction_type': 'api_500',
-                    'metadata': {'error': error_msg, 'api_restricted': True, 'status_code': 500}
+                    'metadata': metadata
                 }
+                
+                # Add series information if this is an episode
+                if content_type == 'episode' and series_slug_from_metadata:
+                    content_data['series_slug'] = series_slug_from_metadata
+                    if series_title_from_metadata:
+                        content_data['series_title'] = series_title_from_metadata
                 
                 # Save to database
                 self.db.upsert_content(content_data)
@@ -306,6 +417,23 @@ class ContentScraper:
             response.raise_for_status()
             media_data = response.json()
             
+            # Determine content type based on metadata
+            # Check season_data first (indicates episode)
+            content_type = media_data.get('type', 'unknown')
+            series_slug_from_metadata = None
+            series_title_from_metadata = None
+            
+            if 'season_data' in media_data and isinstance(media_data['season_data'], dict):
+                # This is an episode - has season_data with series information
+                content_type = 'episode'
+                season_data = media_data['season_data']
+                series_slug_from_metadata = season_data.get('series_slug')
+                series_title_from_metadata = season_data.get('series_title')
+            elif media_data.get('collection') == 'series':
+                # This is a series
+                content_type = 'series'
+            # Otherwise, use the type from API (vod for standalone media)
+            
             # Extract media_type (audio/video) from metadata
             media_type = media_data.get('media_type', '').lower() if media_data.get('media_type') else None
             
@@ -316,23 +444,37 @@ class ContentScraper:
                 existing_status = self.db.get_content_status(slug, self.platform)
                 
                 # Prepare content data
+                # Add platform URL to metadata
+                metadata = media_data.copy() if isinstance(media_data, dict) else {}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, content_type)
+                
+                # Add media_type to metadata if present
+                if media_type:
+                    metadata['media_type'] = media_type
+                
                 content_data = {
                     'slug': slug,
                     'platform': self.platform,
                     'title': media_data.get('title'),
-                    'type': media_data.get('type', 'unknown'),
+                    'type': content_type,
                     'duration': media_data.get('duration'),
                     'year': media_data.get('production_year') or media_data.get('year'),
                     'genres': [g.get('name') for g in media_data.get('genres', [])],
-                    'metadata': media_data
+                    'metadata': metadata
                 }
                 
-                # Add media_type to metadata if present
-                if media_type:
-                    if 'metadata' not in content_data or not isinstance(content_data['metadata'], dict):
-                        content_data['metadata'] = {}
-                    if isinstance(content_data['metadata'], dict):
-                        content_data['metadata']['media_type'] = media_type
+                # Add series information if this is an episode
+                if content_type == 'episode' and series_slug_from_metadata:
+                    content_data['series_slug'] = series_slug_from_metadata
+                    if series_title_from_metadata:
+                        content_data['series_title'] = series_title_from_metadata
+                    # Extract episode/season numbers from season_data if available
+                    if 'season_data' in media_data and isinstance(media_data['season_data'], dict):
+                        season_data = media_data['season_data']
+                        # Try to get episode number from next_episode or other sources
+                        # Note: episode_number might not be in season_data, it's usually in the episode list
+                        if 'season_number' in season_data:
+                            content_data['season_number'] = season_data.get('season_number')
                 
                 # Preserve existing geo-restriction status if it was marked as restricted
                 if existing_status and existing_status['is_geo_restricted'] is True:
@@ -368,22 +510,50 @@ class ContentScraper:
                     restriction_type = f"manifest_{geo_check.get('status_code')}"
                 
                 # Prepare content data
+                # Add platform URL to metadata
+                metadata = media_data.copy() if isinstance(media_data, dict) else {}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, content_type)
+                
+                # Ensure media_type is in metadata
+                if media_type:
+                    metadata['media_type'] = media_type
+                
+                # Handle case where geo_check returns None for is_geo_restricted
+                # This can happen if manifest check fails or returns unexpected status
+                is_geo_restricted = geo_check.get('is_geo_restricted')
+                if is_geo_restricted is None:
+                    # If status_code is 403 or 500, treat as geo-restricted
+                    status_code = geo_check.get('status_code')
+                    if status_code in [403, 500]:
+                        is_geo_restricted = True
+                        print(f"    ⚠️  Manifest check returned None but status_code={status_code}, treating as geo-restricted")
+                    else:
+                        # For other cases (404, network errors, etc.), log warning but keep as None
+                        print(f"    ⚠️  Geo-restriction status unclear for {slug}: {geo_check.get('error', 'Unknown error')}")
+                
                 content_data = {
                     'slug': slug,
                     'platform': self.platform,
                     'title': media_data.get('title'),
-                    'type': media_data.get('type', 'unknown'),
+                    'type': content_type,
                     'duration': media_data.get('duration'),
                     'year': media_data.get('production_year') or media_data.get('year'),
                     'genres': [g.get('name') for g in media_data.get('genres', [])],
-                    'is_geo_restricted': geo_check.get('is_geo_restricted'),
-                    'restriction_type': restriction_type,
-                    'metadata': media_data
+                    'is_geo_restricted': is_geo_restricted,
+                    'restriction_type': restriction_type if is_geo_restricted is not None else None,
+                    'metadata': metadata
                 }
                 
-                # Ensure media_type is in metadata
-                if media_type:
-                    content_data['metadata']['media_type'] = media_type
+                # Add series information if this is an episode
+                if content_type == 'episode' and series_slug_from_metadata:
+                    content_data['series_slug'] = series_slug_from_metadata
+                    if series_title_from_metadata:
+                        content_data['series_title'] = series_title_from_metadata
+                    # Extract episode/season numbers from season_data if available
+                    if 'season_data' in media_data and isinstance(media_data['season_data'], dict):
+                        season_data = media_data['season_data']
+                        if 'season_number' in season_data:
+                            content_data['season_number'] = season_data.get('season_number')
                 
                 # Save to database
                 self.db.upsert_content(content_data)
@@ -432,15 +602,33 @@ class ContentScraper:
         print(f"Checking series: {series_slug}")
         
         try:
+            # Get series metadata first
+            series_metadata = None
+            series_title = None
+            try:
+                series_data = self.api.get_series(series_slug)
+                self._sleep()
+                series_metadata = series_data
+                series_title = series_data.get('title')
+            except Exception as e:
+                print(f"  ⚠️  Could not fetch series metadata: {e}")
+            
             # Get all episodes
             episodes = self.api.get_all_episodes_from_series(series_slug)
             self._sleep()
             
             if not episodes:
                 print(f"  No episodes found in series {series_slug}")
+                # Still create series record even if no episodes
+                if series_metadata:
+                    self._create_series_record(series_slug, series_metadata, episodes)
                 return []
             
             print(f"  Found {len(episodes)} episodes")
+            
+            # Create series record before processing episodes
+            if series_metadata:
+                self._create_series_record(series_slug, series_metadata, episodes)
             
             episode_data_list = []
             
@@ -451,14 +639,30 @@ class ContentScraper:
                 try:
                     # Try to get full episode metadata (includes images, description, etc.)
                     episode_metadata = episode  # Default to transformed episode data
+                    api_restricted = False
+                    api_status_code = None
+                    
                     try:
                         full_episode_data = self.api.get_media(episode_slug)
                         self._sleep()
                         # Use full metadata if available
                         episode_metadata = full_episode_data
+                    except requests.exceptions.HTTPError as e:
+                        # Handle 403/500 at API level - mark as geo-restricted immediately
+                        if e.response.status_code == 403:
+                            api_restricted = True
+                            api_status_code = 403
+                            print(f"      🚫 {episode_slug}: Geo-restricted at API level (403)")
+                        elif e.response.status_code == 500:
+                            api_restricted = True
+                            api_status_code = 500
+                            print(f"      🚫 {episode_slug}: Server error (500) - likely geo-restricted")
+                        else:
+                            # For 404 or other errors, use the transformed episode data
+                            print(f"      ⚠️  Could not fetch full metadata for {episode_slug}: {e.response.status_code}")
                     except Exception as e:
-                        # If get_media fails (404, 403, etc.), use the transformed episode data
-                        print(f"      Could not fetch full metadata for {episode_slug}: {e}")
+                        # For other exceptions (network errors, etc.), use the transformed episode data
+                        print(f"      ⚠️  Could not fetch full metadata for {episode_slug}: {e}")
                     
                     # Check if geo-check is disabled
                     if self.disable_geo_check:
@@ -472,6 +676,14 @@ class ContentScraper:
                             episode_media_type = episode_metadata.get('media_type', '').lower() if episode_metadata.get('media_type') else None
                         
                         # Prepare content data
+                        # Add platform URL to metadata
+                        metadata = episode_metadata.copy() if isinstance(episode_metadata, dict) else {}
+                        metadata = self._add_platform_url_to_metadata(metadata, episode_slug, 'episode', series_slug)
+                        
+                        # Ensure media_type is in metadata
+                        if episode_media_type:
+                            metadata['media_type'] = episode_media_type
+                        
                         content_data = {
                             'slug': episode_slug,
                             'platform': self.platform,
@@ -484,14 +696,8 @@ class ContentScraper:
                             'series_title': episode.get('series_title'),
                             'season_number': episode.get('season_number'),
                             'episode_number': episode.get('episode_number'),
-                            'metadata': episode_metadata if isinstance(episode_metadata, dict) else {}
+                            'metadata': metadata
                         }
-                        
-                        # Ensure media_type is in metadata
-                        if episode_media_type:
-                            if not isinstance(content_data['metadata'], dict):
-                                content_data['metadata'] = {}
-                            content_data['metadata']['media_type'] = episode_media_type
                         
                         # Preserve existing geo-restriction status if it was marked as restricted
                         if existing_status and existing_status['is_geo_restricted'] is True:
@@ -516,58 +722,111 @@ class ContentScraper:
                         episode_data_list.append(content_data)
                     else:
                         # Normal flow - check geo-restriction for this episode
-                        # Pass episode_metadata so API can detect audio content
-                        episode_meta_dict = episode_metadata if isinstance(episode_metadata, dict) else None
-                        geo_check = self.api.check_geo_restriction(episode_slug, media_metadata=episode_meta_dict)
-                        self._sleep()
-                        
-                        # Extract media_type from episode metadata
-                        episode_media_type = None
-                        if isinstance(episode_metadata, dict):
-                            episode_media_type = episode_metadata.get('media_type', '').lower() if episode_metadata.get('media_type') else None
-                        
-                        # Determine restriction type based on media type
-                        if geo_check.get('media_type') == 'audio':
-                            restriction_type = f"audio_{geo_check.get('status_code')}"
-                        else:
-                            restriction_type = f"manifest_{geo_check.get('status_code')}"
-                        
-                        # Prepare content data
-                        content_data = {
-                            'slug': episode_slug,
-                            'platform': self.platform,
-                            'title': episode_metadata.get('title') if isinstance(episode_metadata, dict) else episode.get('episode_title'),
-                            'type': 'episode',
-                            'duration': episode_metadata.get('duration') if isinstance(episode_metadata, dict) else episode.get('duration'),
-                            'year': episode_metadata.get('production_year') or (episode_metadata.get('year') if isinstance(episode_metadata, dict) else None),
-                            'genres': [g.get('name') for g in episode_metadata.get('genres', [])] if isinstance(episode_metadata, dict) else [],
-                            'series_slug': series_slug,
-                            'series_title': episode.get('series_title'),
-                            'season_number': episode.get('season_number'),
-                            'episode_number': episode.get('episode_number'),
-                            'is_geo_restricted': geo_check.get('is_geo_restricted'),
-                            'restriction_type': restriction_type,
-                            'metadata': episode_metadata if isinstance(episode_metadata, dict) else {}
-                        }
-                        
-                        # Ensure media_type is in metadata
-                        if episode_media_type:
-                            if not isinstance(content_data['metadata'], dict):
-                                content_data['metadata'] = {}
-                            content_data['metadata']['media_type'] = episode_media_type
-                        
-                        # Save to database
-                        self.db.upsert_content(content_data)
-                        self.db.add_check_history(episode_slug, geo_check)
-                        
-                        # Update stats
-                        self.stats['total_checked'] += 1
-                        if geo_check.get('is_geo_restricted') is True:
+                        # If API already returned 403/500, mark as geo-restricted immediately
+                        if api_restricted:
+                            # Create content data with limited info (API restricted)
+                            error_msg = 'Geo-restricted'
+                            
+                            metadata = episode_metadata.copy() if isinstance(episode_metadata, dict) else {}
+                            metadata['error'] = error_msg
+                            metadata['api_restricted'] = True
+                            metadata = self._add_platform_url_to_metadata(metadata, episode_slug, 'episode', series_slug)
+                            
+                            content_data = {
+                                'slug': episode_slug,
+                                'platform': self.platform,
+                                'title': episode_metadata.get('title') if isinstance(episode_metadata, dict) else episode.get('episode_title'),
+                                'type': 'episode',
+                                'series_slug': series_slug,
+                                'series_title': episode.get('series_title'),
+                                'season_number': episode.get('season_number'),
+                                'episode_number': episode.get('episode_number'),
+                                'is_geo_restricted': True,
+                                'restriction_type': f'api_{api_status_code}',
+                                'metadata': metadata
+                            }
+                            
+                            # Save to database
+                            self.db.upsert_content(content_data)
+                            self.db.add_check_history(episode_slug, {
+                                'is_geo_restricted': True,
+                                'status_code': api_status_code,
+                                'error': error_msg
+                            })
+                            
+                            # Update stats
+                            self.stats['total_checked'] += 1
                             self.stats['geo_restricted'] += 1
-                        elif geo_check.get('is_geo_restricted') is False:
-                            self.stats['accessible'] += 1
-                        
-                        episode_data_list.append(content_data)
+                            
+                            episode_data_list.append(content_data)
+                        else:
+                            # API is accessible, check manifest/audio file
+                            # Pass episode_metadata so API can detect audio content
+                            episode_meta_dict = episode_metadata if isinstance(episode_metadata, dict) else None
+                            geo_check = self.api.check_geo_restriction(episode_slug, media_metadata=episode_meta_dict)
+                            self._sleep()
+                            
+                            # Extract media_type from episode metadata
+                            episode_media_type = None
+                            if isinstance(episode_metadata, dict):
+                                episode_media_type = episode_metadata.get('media_type', '').lower() if episode_metadata.get('media_type') else None
+                            
+                            # Determine restriction type based on media type
+                            if geo_check.get('media_type') == 'audio':
+                                restriction_type = f"audio_{geo_check.get('status_code')}"
+                            else:
+                                restriction_type = f"manifest_{geo_check.get('status_code')}"
+                            
+                            # Handle case where geo_check returns None for is_geo_restricted
+                            is_geo_restricted = geo_check.get('is_geo_restricted')
+                            if is_geo_restricted is None:
+                                # If status_code is 403 or 500, treat as geo-restricted
+                                status_code = geo_check.get('status_code')
+                                if status_code in [403, 500]:
+                                    is_geo_restricted = True
+                                    print(f"      ⚠️  Manifest check returned None but status_code={status_code}, treating as geo-restricted")
+                                else:
+                                    # For other cases (404, network errors, etc.), log warning but keep as None
+                                    print(f"      ⚠️  Geo-restriction status unclear for {episode_slug}: {geo_check.get('error', 'Unknown error')}")
+                            
+                            # Prepare content data
+                            # Add platform URL to metadata
+                            metadata = episode_metadata.copy() if isinstance(episode_metadata, dict) else {}
+                            metadata = self._add_platform_url_to_metadata(metadata, episode_slug, 'episode', series_slug)
+                            
+                            # Ensure media_type is in metadata
+                            if episode_media_type:
+                                metadata['media_type'] = episode_media_type
+                            
+                            content_data = {
+                                'slug': episode_slug,
+                                'platform': self.platform,
+                                'title': episode_metadata.get('title') if isinstance(episode_metadata, dict) else episode.get('episode_title'),
+                                'type': 'episode',
+                                'duration': episode_metadata.get('duration') if isinstance(episode_metadata, dict) else episode.get('duration'),
+                                'year': episode_metadata.get('production_year') or (episode_metadata.get('year') if isinstance(episode_metadata, dict) else None),
+                                'genres': [g.get('name') for g in episode_metadata.get('genres', [])] if isinstance(episode_metadata, dict) else [],
+                                'series_slug': series_slug,
+                                'series_title': episode.get('series_title'),
+                                'season_number': episode.get('season_number'),
+                                'episode_number': episode.get('episode_number'),
+                                'is_geo_restricted': is_geo_restricted,
+                                'restriction_type': restriction_type if is_geo_restricted is not None else None,
+                                'metadata': metadata
+                            }
+                            
+                            # Save to database
+                            self.db.upsert_content(content_data)
+                            self.db.add_check_history(episode_slug, geo_check)
+                            
+                            # Update stats
+                            self.stats['total_checked'] += 1
+                            if geo_check.get('is_geo_restricted') is True:
+                                self.stats['geo_restricted'] += 1
+                            elif geo_check.get('is_geo_restricted') is False:
+                                self.stats['accessible'] += 1
+                            
+                            episode_data_list.append(content_data)
                     
                 except Exception as e:
                     print(f"      Error checking episode {episode_slug}: {e}")
@@ -579,6 +838,79 @@ class ContentScraper:
             print(f"  Error checking series {series_slug}: {e}")
             self.stats['errors'] += 1
             return []
+    
+    def _create_series_record(self, series_slug: str, series_metadata: Dict[str, Any], episodes: List[Dict[str, Any]]) -> None:
+        """
+        Create a series record in the database
+        
+        Args:
+            series_slug: Series slug
+            series_metadata: Series metadata from API
+            episodes: List of episode dictionaries (for counting)
+        """
+        try:
+            # Extract series information
+            series_title = series_metadata.get('title') or series_slug
+            series_type = series_metadata.get('type', 'series')
+            
+            # Get metadata
+            metadata = series_metadata.copy()
+            metadata = self._add_platform_url_to_metadata(metadata, series_slug, 'series')
+            
+            # Calculate geo-restriction summary from episodes if available
+            restricted_count = 0
+            accessible_count = 0
+            unknown_count = 0
+            
+            if episodes:
+                for episode in episodes:
+                    # Try to get geo-restriction from existing database records
+                    episode_slug = episode.get('episode_slug')
+                    if episode_slug:
+                        existing_status = self.db.get_content_status(episode_slug, self.platform)
+                        if existing_status:
+                            if existing_status['is_geo_restricted'] is True:
+                                restricted_count += 1
+                            elif existing_status['is_geo_restricted'] is False:
+                                accessible_count += 1
+                            else:
+                                unknown_count += 1
+                        else:
+                            unknown_count += 1
+            
+            # Determine overall geo-restriction status
+            # If all episodes are restricted, series is restricted
+            # If all episodes are accessible, series is accessible
+            # Otherwise, it's unknown
+            total_episodes = len(episodes)
+            is_geo_restricted = None
+            if total_episodes > 0:
+                if restricted_count == total_episodes:
+                    is_geo_restricted = True
+                elif accessible_count == total_episodes:
+                    is_geo_restricted = False
+                # Otherwise, keep as None (mixed or unknown)
+            
+            # Create series content data
+            content_data = {
+                'slug': series_slug,
+                'platform': self.platform,
+                'title': series_title,
+                'type': 'series',
+                'duration': series_metadata.get('duration'),
+                'year': series_metadata.get('production_year') or series_metadata.get('year'),
+                'genres': [g.get('name') for g in series_metadata.get('genres', [])] if isinstance(series_metadata.get('genres'), list) else [],
+                'is_geo_restricted': is_geo_restricted,
+                'restriction_type': None,  # Series don't have a single restriction type
+                'metadata': metadata
+            }
+            
+            # Save to database
+            self.db.upsert_content(content_data)
+            print(f"  ✓ Created series record: {series_title}")
+            
+        except Exception as e:
+            print(f"  ⚠️  Error creating series record: {e}")
     
     def scrape_all(self, 
                    media_slugs: List[str] = None,

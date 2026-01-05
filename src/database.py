@@ -31,11 +31,12 @@ class ContentDatabase:
         cursor = self.conn.cursor()
         
         # Main content table
+        # Platform is stored as JSON array: ["primeran.eus", "makusi.eus"]
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS content (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT NOT NULL,
-                platform TEXT NOT NULL DEFAULT 'primeran.eus',
+                slug TEXT NOT NULL UNIQUE,
+                platform TEXT NOT NULL DEFAULT '["primeran.eus"]',
                 title TEXT,
                 type TEXT NOT NULL,  -- 'movie', 'episode', 'documentary', 'concert', etc.
                 duration INTEGER,  -- Duration in seconds
@@ -50,8 +51,7 @@ class ContentDatabase:
                 last_checked TIMESTAMP,
                 metadata TEXT,  -- JSON blob with full API response
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(slug, platform)
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -79,6 +79,8 @@ class ContentDatabase:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_content_series_slug ON content(series_slug)
         """)
+        # Note: Platform index on JSON array is less efficient, but we can still create it
+        # Queries will use json_each() for filtering
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_content_platform ON content(platform)
         """)
@@ -211,8 +213,10 @@ class ContentDatabase:
         Insert or update content record
         
         Args:
-            content_data: Dictionary with content information (must include 'platform')
-            
+            content_data: Dictionary with content information
+                - 'platform' can be a string (single platform) or list (multiple platforms)
+                - If slug exists, platforms will be merged
+        
         Returns:
             Content ID
         """
@@ -220,7 +224,7 @@ class ContentDatabase:
         
         # Prepare data
         slug = content_data['slug']
-        platform = content_data.get('platform', 'primeran.eus')
+        new_platform = content_data.get('platform', 'primeran.eus')
         title = content_data.get('title')
         content_type = content_data.get('type', 'unknown')
         duration = content_data.get('duration')
@@ -232,8 +236,84 @@ class ContentDatabase:
         episode_number = content_data.get('episode_number')
         is_geo_restricted = content_data.get('is_geo_restricted')
         restriction_type = content_data.get('restriction_type')
-        metadata = json.dumps(content_data.get('metadata', {}))
+        metadata = content_data.get('metadata', {})
         last_checked = datetime.now().isoformat()
+        
+        # Normalize platform to JSON array
+        # Convert string to list if needed
+        def normalize_platform_name(platform_name: str) -> str:
+            """
+            Normalize platform name to always use .eus suffix.
+            Examples: 'makusi' -> 'makusi.eus', 'primeran' -> 'primeran.eus'
+            """
+            if not platform_name:
+                return 'primeran.eus'
+            # If it already has .eus, return as is
+            if platform_name.endswith('.eus'):
+                return platform_name
+            # Otherwise, add .eus suffix
+            return f'{platform_name}.eus'
+        
+        if isinstance(new_platform, str):
+            # Check if it's already JSON
+            try:
+                new_platform_list = json.loads(new_platform)
+                if not isinstance(new_platform_list, list):
+                    new_platform_list = [normalize_platform_name(new_platform_list)]
+                else:
+                    # Normalize all platform names in the list
+                    new_platform_list = [normalize_platform_name(p) for p in new_platform_list]
+            except (json.JSONDecodeError, TypeError):
+                # Plain string, convert to list and normalize
+                new_platform_list = [normalize_platform_name(new_platform)]
+        elif isinstance(new_platform, list):
+            # Normalize all platform names in the list
+            new_platform_list = [normalize_platform_name(p) for p in new_platform_list]
+        else:
+            new_platform_list = ['primeran.eus']
+        
+        # Check if content with this slug already exists
+        cursor.execute("SELECT platform, metadata FROM content WHERE slug = ?", (slug,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Merge platforms: combine existing and new, remove duplicates
+            existing_platform = existing['platform']
+            try:
+                existing_platform_list = json.loads(existing_platform) if isinstance(existing_platform, str) else existing_platform
+                if not isinstance(existing_platform_list, list):
+                    existing_platform_list = [existing_platform_list] if existing_platform_list else []
+            except (json.JSONDecodeError, TypeError):
+                existing_platform_list = [existing_platform] if existing_platform else []
+            
+            # Normalize existing platform names (in case old data has 'makusi' instead of 'makusi.eus')
+            existing_platform_list = [normalize_platform_name(p) for p in existing_platform_list]
+            
+            # Merge platforms, preserving order, removing duplicates
+            merged_platforms = list(dict.fromkeys(existing_platform_list + new_platform_list))
+            platform_json = json.dumps(merged_platforms)
+            
+            # Merge metadata if needed (store platform-specific URLs)
+            existing_metadata = json.loads(existing['metadata']) if existing['metadata'] else {}
+            if isinstance(metadata, dict):
+                # Store platform-specific URLs in metadata
+                if 'platform_urls' not in metadata:
+                    metadata['platform_urls'] = {}
+                # Merge with existing platform_urls
+                if 'platform_urls' in existing_metadata:
+                    metadata['platform_urls'].update(existing_metadata.get('platform_urls', {}))
+                # Merge other metadata (new takes precedence for non-platform_urls)
+                merged_metadata = {**existing_metadata, **metadata}
+                merged_metadata['platform_urls'] = metadata.get('platform_urls', existing_metadata.get('platform_urls', {}))
+            else:
+                merged_metadata = existing_metadata
+        else:
+            # New content, use new platform list
+            platform_json = json.dumps(new_platform_list)
+            merged_metadata = metadata if isinstance(metadata, dict) else {}
+        
+        # Serialize metadata
+        metadata_json = json.dumps(merged_metadata)
         
         cursor.execute("""
             INSERT INTO content (
@@ -242,25 +322,26 @@ class ContentDatabase:
                 is_geo_restricted, restriction_type, last_checked, metadata
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(slug, platform) DO UPDATE SET
-                title = excluded.title,
+            ON CONFLICT(slug) DO UPDATE SET
+                platform = excluded.platform,
+                title = COALESCE(excluded.title, title),
                 type = excluded.type,
-                duration = excluded.duration,
-                year = excluded.year,
-                genres = excluded.genres,
-                series_slug = excluded.series_slug,
-                series_title = excluded.series_title,
-                season_number = excluded.season_number,
-                episode_number = excluded.episode_number,
+                duration = COALESCE(excluded.duration, duration),
+                year = COALESCE(excluded.year, year),
+                genres = COALESCE(excluded.genres, genres),
+                series_slug = COALESCE(excluded.series_slug, series_slug),
+                series_title = COALESCE(excluded.series_title, series_title),
+                season_number = COALESCE(excluded.season_number, season_number),
+                episode_number = COALESCE(excluded.episode_number, episode_number),
                 is_geo_restricted = excluded.is_geo_restricted,
                 restriction_type = excluded.restriction_type,
                 last_checked = excluded.last_checked,
                 metadata = excluded.metadata,
                 updated_at = CURRENT_TIMESTAMP
         """, (
-            slug, platform, title, content_type, duration, year, genres,
+            slug, platform_json, title, content_type, duration, year, genres,
             series_slug, series_title, season_number, episode_number,
-            is_geo_restricted, restriction_type, last_checked, metadata
+            is_geo_restricted, restriction_type, last_checked, metadata_json
         ))
         
         self.conn.commit()
@@ -279,10 +360,11 @@ class ContentDatabase:
         """
         cursor = self.conn.cursor()
         if platform:
+            # Check if platform is in the JSON array
             cursor.execute("""
                 SELECT is_geo_restricted, restriction_type 
                 FROM content 
-                WHERE slug = ? AND platform = ?
+                WHERE slug = ? AND EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)
             """, (slug, platform))
         else:
             cursor.execute("""
@@ -337,7 +419,11 @@ class ContentDatabase:
         """
         cursor = self.conn.cursor()
         if platform:
-            cursor.execute("SELECT * FROM content WHERE slug = ? AND platform = ?", (slug, platform))
+            # Check if platform is in the JSON array
+            cursor.execute("""
+                SELECT * FROM content 
+                WHERE slug = ? AND EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)
+            """, (slug, platform))
         else:
             cursor.execute("SELECT * FROM content WHERE slug = ? LIMIT 1", (slug,))
         row = cursor.fetchone()
@@ -345,6 +431,18 @@ class ContentDatabase:
         if row:
             return dict(row)
         return None
+    
+    def get_content_by_slug(self, slug: str) -> Optional[Dict[str, Any]]:
+        """
+        Get content by slug (alias for get_content without platform)
+        
+        Args:
+            slug: Content slug
+            
+        Returns:
+            Content dictionary or None if not found
+        """
+        return self.get_content(slug)
     
     def get_all_content(self, 
                        content_type: Optional[str] = None,
@@ -374,7 +472,8 @@ class ContentDatabase:
             query += " AND is_geo_restricted = 1"
         
         if platform:
-            query += " AND platform = ?"
+            # Filter by platform in JSON array
+            query += " AND EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)"
             params.append(platform)
         
         query += " ORDER BY title"
@@ -401,7 +500,8 @@ class ContentDatabase:
         params = []
         
         if platform:
-            where_clause = " WHERE platform = ?"
+            # Filter by platform in JSON array
+            where_clause = " WHERE EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)"
             params = [platform]
         
         # Total content
@@ -417,11 +517,11 @@ class ContentDatabase:
         """, params)
         stats['by_type'] = {row[0]: row[1] for row in cursor.fetchall()}
         
-        # By platform
+        # By platform - extract platforms from JSON arrays
         cursor.execute("""
-            SELECT platform, COUNT(*) as count 
-            FROM content 
-            GROUP BY platform
+            SELECT json_each.value as platform, COUNT(*) as count
+            FROM content, json_each(content.platform)
+            GROUP BY json_each.value
         """)
         stats['by_platform'] = {row[0]: row[1] for row in cursor.fetchall()}
         

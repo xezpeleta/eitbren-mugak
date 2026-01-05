@@ -322,11 +322,20 @@ td:nth-child(4) {
     display: none;
 }
 
-/* Hide Restriction Type column */
-th[data-sort="restriction_type"],
-td:nth-child(10) {
-    display: none;
-}
+/* 
+ * IMPORTANT: Column visibility rules
+ * 
+ * The table has 10 columns (see index.html and content.js for structure):
+ * 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
+ * 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
+ * 
+ * WARNING: If you use nth-child() selectors to hide/show columns, be careful!
+ * The column order must match between HTML, JavaScript, and CSS.
+ * 
+ * Previously, we had: td:nth-child(10) { display: none; } to hide restriction_type.
+ * This was removed because restriction_type column was removed and platform is now column 10.
+ * If you need to hide a column in the future, update this comment and verify the column number.
+ */
 
 tbody tr:hover {
     background: var(--bg-color);
@@ -446,6 +455,30 @@ tbody tr:hover {
     background: var(--primary-color);
     color: white;
     margin-right: 0.25rem;
+}
+
+/* Platform Badge */
+.platform-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    margin-right: 0.3rem;
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.platform-badge-primeran {
+    background: #1a1a1a;
+    color: #ffffff;
+}
+
+.platform-badge-makusi {
+    background: #00E676;
+    color: #000000;
 }
 
 /* Content Link */

@@ -51,16 +51,12 @@
                 <label for="platform-filter">Plataforma:</label>
                 <select id="platform-filter">
                     <option value="">Guztia</option>
-                    <option value="primeran.eus">Primeran</option>
-                    <option value="makusi.eus">Makusi</option>
                 </select>
             </div>
             <div class="filter-group">
                 <label for="media-type-filter">Media mota:</label>
                 <select id="media-type-filter">
                     <option value="">Guztia</option>
-                    <option value="audio">Audio</option>
-                    <option value="video">Bideo</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -76,9 +72,27 @@
                 <table id="content-table">
                     <thead>
                         <tr>
+                            <!-- 
+                                COLUMN STRUCTURE (IMPORTANT: Keep in sync with renderContentRow() in content.js):
+                                1. Empty (expand button for series rows)
+                                2. Irudia (Image/Thumbnail)
+                                3. Izenburua (Title)
+                                4. Mota (Type)
+                                5. Adina (Age Rating)
+                                6. Hizkuntza(k) (Languages)
+                                7. Iraupena (Duration)
+                                8. Urtea (Year)
+                                9. Geo-Murrizketa (Geo-Restriction)
+                                10. Plataforma (Platform) - LAST COLUMN
+                                
+                                WARNING: If you add/remove/reorder columns, update:
+                                - This HTML header
+                                - renderContentRow() in content.js (td elements order)
+                                - renderSeriesRow() in content.js (td elements order)
+                                - Any CSS nth-child() selectors in style.css
+                            -->
                             <th style="width: 40px;"></th>
                             <th style="width: 80px;">Irudia</th>
-                            <th data-sort="platform">Plataforma <span class="sort-indicator"></span></th>
                             <th data-sort="title">Izenburua <span class="sort-indicator"></span></th>
                             <th data-sort="type">Mota <span class="sort-indicator"></span></th>
                             <th>Adina</th>
@@ -86,12 +100,12 @@
                             <th data-sort="duration">Iraupena <span class="sort-indicator"></span></th>
                             <th data-sort="year">Urtea <span class="sort-indicator"></span></th>
                             <th data-sort="is_geo_restricted">Geo-Murrizketa <span class="sort-indicator"></span></th>
-                            <th data-sort="restriction_type">Murrizketa mota <span class="sort-indicator"></span></th>
+                            <th data-sort="platform">Plataforma <span class="sort-indicator"></span></th>
                         </tr>
                     </thead>
                     <tbody id="content-tbody">
                         <tr>
-                            <td colspan="11" class="loading">Loading content...</td>
+                            <td colspan="10" class="loading">Loading content...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -125,6 +139,6 @@
         </div>
     </footer>
 
-    <script src="js/content.js"></script>
+    <script src="js/content.js?v=20260106-2"></script>
 </body>
 </html>
