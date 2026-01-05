@@ -570,7 +570,7 @@ function updateResultsCount() {
     
     const totalRows = getTotalRows();
     const pageCount = getPageCount(totalRows);
-    const countText = `${totalCount.toLocaleString()} items (${standaloneCount} standalone, ${seriesCount} series with ${episodeCount} episodes) — Page ${currentPage} of ${pageCount}`;
+    const countText = `${totalCount.toLocaleString()} elementu (${standaloneCount} filma, ${seriesCount} serie, ${episodeCount} atalekin) — Orrialdea ${currentPage} / ${pageCount}`;
     document.getElementById('results-count').textContent = countText;
 }
 
