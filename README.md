@@ -124,7 +124,7 @@ Each platform has its own documentation in the `platforms/` directory:
 ## 📦 Project Structure
 
 ```
-eitbren-mugak/
+eitbhub/
 ├── src/                    # Scraper source code
 │   ├── primeran_api.py    # Primeran API client
 │   ├── database.py        # SQLite database operations
