@@ -3,67 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primeran Geo-Restriction Checker - Dashboard</title>
+    <title>Primeran Content List - Geo-Restriction Checker</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>Primeran.eus Geo-Restriction Checker</h1>
-            <p class="subtitle">Tracking geo-restricted content on Primeran.eus</p>
+            <h1>Primeran.eus Content List</h1>
+            <p class="subtitle">All content with geo-restriction status</p>
         </div>
     </header>
 
     <main class="container">
-        <section class="stats-overview" id="stats-overview">
-            <div class="stat-card">
-                <div class="stat-value" id="total-content">-</div>
-                <div class="stat-label">Total Content</div>
+        <section class="filters-section">
+            <div class="filter-group">
+                <label for="search-input">Search:</label>
+                <input type="text" id="search-input" placeholder="Search by title...">
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="geo-restricted">-</div>
-                <div class="stat-label">Geo-Restricted</div>
+            <div class="filter-group">
+                <label for="type-filter">Type:</label>
+                <select id="type-filter">
+                    <option value="">All Types</option>
+                </select>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="accessible">-</div>
-                <div class="stat-label">Accessible</div>
+            <div class="filter-group">
+                <label for="restriction-filter">Geo-Restriction:</label>
+                <select id="restriction-filter">
+                    <option value="">All</option>
+                    <option value="true">Restricted</option>
+                    <option value="false">Accessible</option>
+                    <option value="null">Unknown</option>
+                </select>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="restriction-percentage">-</div>
-                <div class="stat-label">Restriction Rate</div>
+            <div class="filter-group">
+                <label for="age-rating-filter">Age Rating:</label>
+                <select id="age-rating-filter">
+                    <option value="">All Ratings</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="language-filter">Language:</label>
+                <select id="language-filter">
+                    <option value="">All Languages</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button id="clear-filters">Clear Filters</button>
             </div>
         </section>
 
-        <section class="charts-section">
-            <div class="chart-container">
-                <h2>Geo-Restriction Status</h2>
-                <canvas id="status-chart"></canvas>
+        <section class="table-section">
+            <div class="table-info">
+                <span id="results-count">0</span> items found
             </div>
-            <div class="chart-container">
-                <h2>Content by Type</h2>
-                <canvas id="type-chart"></canvas>
-            </div>
-        </section>
-
-        <section class="info-section">
-            <div class="info-card">
-                <h3>About This Project</h3>
-                <p>
-                    This dashboard tracks geo-restricted content on Primeran.eus, a Basque streaming platform.
-                    Content is checked by attempting to access video manifests - if access is denied (403 Forbidden),
-                    the content is marked as geo-restricted.
-                </p>
-                <p>
-                    <strong>Last Updated:</strong> <span id="last-updated">-</span>
-                </p>
-            </div>
-            <div class="info-card">
-                <h3>Navigation</h3>
-                <ul>
-                    <li><a href="content.html">View Full Content List</a></li>
-                    <li><a href="https://github.com/xezpeleta/eitbren-mugak">View on GitHub</a></li>
-                </ul>
+            <div class="table-wrapper">
+                <table id="content-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th style="width: 80px;">Thumbnail</th>
+                            <th data-sort="title">Title <span class="sort-indicator"></span></th>
+                            <th data-sort="type">Type <span class="sort-indicator"></span></th>
+                            <th>Age</th>
+                            <th>Languages</th>
+                            <th data-sort="duration">Duration <span class="sort-indicator"></span></th>
+                            <th data-sort="year">Year <span class="sort-indicator"></span></th>
+                            <th data-sort="is_geo_restricted">Geo-Restricted <span class="sort-indicator"></span></th>
+                            <th data-sort="restriction_type">Restriction Type <span class="sort-indicator"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="content-tbody">
+                        <tr>
+                            <td colspan="10" class="loading">Loading content...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     </main>
@@ -76,6 +90,6 @@
         </div>
     </footer>
 
-    <script src="js/dashboard.js"></script>
+    <script src="js/content.js"></script>
 </body>
 </html>
