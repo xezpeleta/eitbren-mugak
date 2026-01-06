@@ -352,9 +352,38 @@ We received a **403** from outside the intended region, but the existence and sh
 
 ## Home / Navigation Content
 
-While not exhaustively captured, ETB On shows multiple rows on its home page (Top in Basque/Spanish, recommendations, etc.). These are likely backed by additional endpoints similar to Primeran’s `/home` and `/menus/{id}`, but they did not appear in the small sample of inspected traffic.
+While not exhaustively captured, ETB On shows multiple rows on its home page (Top in Basque/Spanish, recommendations, etc.). These are likely backed by additional endpoints similar to Primeran's `/home` and `/menus/{id}`.
 
-If future work inspects the home page network calls, document any additional endpoints here (e.g. `/api/v1/home`, `/api/v1/menus/{id}`, or ETB On‑specific row endpoints).
+### 15. Get Home Content
+
+**Endpoint**: `GET /api/v1/home`
+
+**Purpose**: Returns the home page structure with sections, carousels, and content rows.
+
+**Response** (based on observed structure):
+
+The home page includes a `children` array with multiple sections such as:
+- Slider (featured content)
+- Channels (`Canales`)
+- Weekly highlights (`Zuzenekoak: Asteko nabarmenenak`)
+- Information section (`Informazioa`)
+- Programs section (`Programak`)
+- Current affairs (`Aktualitatea`)
+- Sports (`ETB Kirolak`)
+- Top 5 lists (Basque/Spanish)
+
+**Note on "Newest" Content**:
+
+Unlike Primeran and Makusi, ETB On does **not** have a clearly labeled "newest" or "latest" section in the `/home` endpoint. For incremental scraping of recent content, consider these alternatives:
+
+1. **Use "Aktualitatea" (Current Affairs)** section - likely contains recent news and current content
+2. **Use "Zuzenekoak: Asteko nabarmenenak"** - weekly highlights from live broadcasts
+3. **Use "Programak" (Programs)** section - may include recently added programs
+4. **Monitor EPG data** via `/api/v1/epg` to track new broadcasts that become available as catch-up content
+
+For daily scraping of ETB On, a full scrape or monitoring the EPG for new broadcasts may be more effective than relying on a "newest" section.
+
+If future work identifies a dedicated newest content section or endpoint, document it here.
 
 ---
 

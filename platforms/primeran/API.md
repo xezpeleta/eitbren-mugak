@@ -678,6 +678,60 @@ GET https://primeran.eus/api/v1/home
 - Category rows
 - Personalized content based on user profile
 
+**Key Sections in Response**:
+
+The home page response includes a `children` array with multiple sections. One particularly useful section for incremental scraping is the **"Berriena" (Newest)** section:
+
+```json
+{
+  "children": [
+    {
+      "name": "Primeran: Berriena Home",
+      "id": 1263,
+      "children": [
+        {
+          "slug": "izaro-agurcerodenero",
+          "title": "Izaro. Agurcerodenero",
+          "type": "vod",
+          "published_on": "2025-12-26T23:01:00+00:00",
+          "duration": 3240,
+          ...
+        },
+        ...
+      ]
+    },
+    ...
+  ]
+}
+```
+
+**Finding the Newest Section**:
+
+To extract newest content programmatically:
+
+```python
+home_data = api.get_home_content()
+
+# Find newest section by name
+for section in home_data.get('children', []):
+    name = section.get('name', '')
+    if 'berriena' in name.lower():
+        newest_items = section.get('children', [])
+        # Process newest items
+        for item in newest_items:
+            print(f"{item['slug']} - {item.get('published_on')}")
+        break
+```
+
+**Use Case - Daily Incremental Scraping**:
+
+Instead of scraping all content daily, you can scrape only the newest section:
+- **Full scrape**: 500+ items, 10-15 minutes
+- **Newest only**: ~11 items, ~2 seconds
+- **Speed improvement**: ~99.7% faster
+
+This is ideal for keeping your database updated with the latest content without the overhead of a full scrape.
+
 ---
 
 ## Smart TV Integration

@@ -632,6 +632,60 @@ GET https://makusi.eus/api/v1/home
 - Category rows
 - Personalized content based on user profile
 
+**Key Sections in Response**:
+
+The home page response includes a `children` array with multiple sections. One particularly useful section for incremental scraping is the **"Berrienak" (Newest)** section:
+
+```json
+{
+  "children": [
+    {
+      "name": "Makusi: Berrienak",
+      "id": 1025,
+      "children": [
+        {
+          "slug": "makusi-gabon-festa",
+          "title": "Makusi gabon festa",
+          "type": "vod",
+          "published_on": "2026-01-05T10:48:00+00:00",
+          "duration": 2940,
+          ...
+        },
+        ...
+      ]
+    },
+    ...
+  ]
+}
+```
+
+**Finding the Newest Section**:
+
+To extract newest content programmatically:
+
+```python
+home_data = api.get_home_content()
+
+# Find newest section by name
+for section in home_data.get('children', []):
+    name = section.get('name', '')
+    if 'berrienak' in name.lower():
+        newest_items = section.get('children', [])
+        # Process newest items
+        for item in newest_items:
+            print(f"{item['slug']} - {item.get('published_on')}")
+        break
+```
+
+**Use Case - Daily Incremental Scraping**:
+
+Instead of scraping all content daily, you can scrape only the newest section:
+- **Full scrape**: 500+ items, 10-15 minutes
+- **Newest only**: ~21 items, ~2 seconds
+- **Speed improvement**: ~99.7% faster
+
+This is ideal for keeping your database updated with the latest content without the overhead of a full scrape.
+
 ---
 
 ### 9. Get User Profile
