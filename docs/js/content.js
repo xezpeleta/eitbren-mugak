@@ -3,6 +3,20 @@ let allContent = [];
 let groupedContent = { series: [], standalone: [] };
 let filteredGroupedContent = { series: [], standalone: [] };
 let expandedSeries = new Set();
+// Track which individual item (by slug) has its detail row expanded.
+// We keep this as a Set for simplicity, but enforce a single active slug.
+let expandedRows = new Set();
+
+// Attempt to infer season number from a title prefix like "D7: 1. Tartaldea"
+function inferSeasonFromTitle(title) {
+    if (!title) return null;
+    const match = String(title).trim().match(/^D\s*([0-9]+)/i);
+    if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        return isNaN(num) ? null : num;
+    }
+    return null;
+}
 let currentSort = { field: null, direction: 'asc' };
 
 // Pagination state
@@ -163,6 +177,56 @@ function groupContentBySeries() {
         series: Array.from(seriesMap.values()),
         standalone: standalone
     };
+
+    // Enrich series with season ordering and computed season_display for episodes
+    groupedContent.series.forEach(series => {
+        // Build a stable season order: smallest season_number -> Season 1, etc.
+        const seasonNumbers = Array.from(
+            new Set(
+                series.episodes
+                    .map(ep => {
+                        if (ep.season_number !== null && ep.season_number !== undefined) {
+                            return ep.season_number;
+                        }
+                        // Fallback: try to infer from title
+                        const inferred = inferSeasonFromTitle(ep.title);
+                        return inferred !== null && inferred !== undefined ? inferred : null;
+                    })
+                    .filter(n => n !== null && n !== undefined)
+            )
+        ).sort((a, b) => a - b);
+
+        const seasonOrderMap = {};
+        seasonNumbers.forEach((num, idx) => {
+            seasonOrderMap[num] = idx + 1;
+        });
+        series.season_order_map = seasonOrderMap;
+
+        // Attach a season_display to each episode (preferred: mapped order; fallback: title prefix)
+        series.episodes.forEach(ep => {
+            if (ep.season_number != null && seasonOrderMap[ep.season_number]) {
+                ep.season_display = seasonOrderMap[ep.season_number];
+            } else {
+                const inferred = inferSeasonFromTitle(ep.title);
+                if (inferred != null) {
+                    ep.season_display = inferred;
+                }
+            }
+        });
+
+        // Default sort for episodes: season (mapped/inferred) -> episode_number -> title
+        series.episodes.sort((a, b) => {
+            const seasonA = a.season_display ?? a.season_number ?? inferSeasonFromTitle(a.title) ?? Number.MAX_SAFE_INTEGER;
+            const seasonB = b.season_display ?? b.season_number ?? inferSeasonFromTitle(b.title) ?? Number.MAX_SAFE_INTEGER;
+            if (seasonA !== seasonB) return seasonA - seasonB;
+
+            const epA = a.episode_number ?? Number.MAX_SAFE_INTEGER;
+            const epB = b.episode_number ?? Number.MAX_SAFE_INTEGER;
+            if (epA !== epB) return epA - epB;
+
+            return String(a.title || a.slug || '').localeCompare(String(b.title || b.slug || ''));
+        });
+    });
 }
 
 // Populate all filter dropdowns
@@ -537,11 +601,21 @@ function renderTable() {
     
     pageRows.forEach(row => {
         if (row.type === 'standalone') {
-            html += renderContentRow(row.item, false, false);
+            const item = row.item;
+            const isExpanded = expandedRows.has(item.slug);
+            html += renderContentRow(item, false, isExpanded);
+            if (isExpanded) {
+                html += renderDetailRow(item, false);
+            }
         } else if (row.type === 'series') {
             html += renderSeriesRow(row.series, row.isExpanded);
         } else if (row.type === 'episode') {
-            html += renderContentRow(row.item, true, row.isExpanded);
+            const item = row.item;
+            const isExpanded = expandedRows.has(item.slug);
+            html += renderContentRow(item, true, isExpanded);
+            if (isExpanded) {
+                html += renderDetailRow(item, true);
+            }
         }
     });
     
@@ -553,6 +627,25 @@ function renderTable() {
             e.stopPropagation();
             const seriesSlug = button.getAttribute('data-series-slug');
             toggleSeriesExpansion(seriesSlug);
+        });
+    });
+
+    // Attach click handlers to data rows to toggle detail expansion
+    document.querySelectorAll('tr[data-slug]').forEach(rowEl => {
+        rowEl.addEventListener('click', () => {
+            const slug = rowEl.getAttribute('data-slug');
+            if (!slug) return;
+
+            // Clicking an already expanded row collapses it.
+            // Clicking a different row collapses any other and expands this one.
+            if (expandedRows.has(slug)) {
+                expandedRows.clear();
+            } else {
+                expandedRows.clear();
+                expandedRows.add(slug);
+            }
+
+            renderTable();
         });
     });
 
@@ -578,6 +671,34 @@ function renderPlatformBadges(platforms) {
     });
     
     return badges.join(' ');
+}
+
+// Render media type icon (audio/video) based on media_type field
+function renderMediaTypeIcon(mediaType) {
+    if (!mediaType) return '';
+    const mt = String(mediaType).toLowerCase();
+    if (mt === 'audio') {
+        return `
+            <span class="detail-media-type" title="Audio">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Audio">
+                    <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/>
+                </svg>
+            </span>
+        `;
+    }
+    if (mt === 'video') {
+        return `
+            <span class="detail-media-type" title="Bideo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Bideo">
+                    <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/>
+                    <path d="m6.2 5.3 3.1 3.9"/>
+                    <path d="m12.4 3.4 3.1 4"/>
+                    <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
+                </svg>
+            </span>
+        `;
+    }
+    return '';
 }
 
 // Render series row
@@ -729,7 +850,7 @@ function renderContentRow(item, isEpisode, isExpanded) {
     // 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
     // 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
     return `
-        <tr class="${rowClass}" style="${indentStyle}">
+        <tr class="${rowClass}" style="${indentStyle}" data-slug="${escapeHtml(item.slug || '')}">
             <td></td>
             <td class="thumbnail-cell">${thumbnailHtml}</td>
             <td>${titleHtml}</td>
@@ -740,6 +861,147 @@ function renderContentRow(item, isEpisode, isExpanded) {
             <td>${item.year || '-'}</td>
             <td>${restrictedStatus !== '-' ? `<span class="status-badge ${statusClass}">${restrictedStatus}</span>` : '-'}</td>
             <td>${platformDisplay}</td>
+        </tr>
+    `;
+}
+
+// Render detail row shown when a content row is expanded
+function renderDetailRow(item, isEpisode) {
+    const description = item.description || '';
+    const hasDescription = description && description.trim().length > 0;
+
+    // Large poster image (reuse thumbnail, but allow it to be bigger)
+    let posterHtml = '';
+    if (item.thumbnail) {
+        posterHtml = `<img src="${escapeHtml(item.thumbnail)}" alt="${escapeHtml(item.title || '')}" class="detail-poster" loading="lazy" onerror="this.style.display='none'">`;
+    }
+
+    // Series / episode info
+    let episodeInfo = '';
+    if (isEpisode) {
+        const parts = [];
+        if (item.series_title) {
+            parts.push(escapeHtml(item.series_title));
+        }
+        const se = [];
+        // Prefer computed season_display; fallback to raw season_number; last resort infer from title
+        let seasonDisplay = item.season_display;
+        if (seasonDisplay == null && item.season_number != null) {
+            seasonDisplay = item.season_number;
+        }
+        if (seasonDisplay == null) {
+            const inferredSeason = inferSeasonFromTitle(item.title);
+            if (inferredSeason != null) {
+                seasonDisplay = inferredSeason;
+            }
+        }
+        if (seasonDisplay != null) {
+            se.push(`${escapeHtml(String(seasonDisplay))}. denboraldia`);
+        }
+        if (item.episode_number != null) {
+            se.push(`${escapeHtml(String(item.episode_number))}. atala`);
+        }
+        if (se.length > 0) {
+            parts.push(se.join(' · '));
+        }
+        if (parts.length > 0) {
+            episodeInfo = `<div class="detail-meta-line detail-episode-info">${parts.join(' — ')}</div>`;
+        }
+    }
+
+    // Meta info: year (kept separate above the inline meta row)
+    const metaParts = [];
+    if (item.year) metaParts.push(`${escapeHtml(String(item.year))}`);
+    const metaLine = metaParts.length > 0
+        ? `<div class="detail-meta-line">${metaParts.join(' · ')}</div>`
+        : '';
+
+    // Availability (date only)
+    let availableText = '';
+    if (item.available_until) {
+        const availableDate = String(item.available_until).split('T')[0] || String(item.available_until);
+        availableText = `Noiz arte: ${escapeHtml(availableDate)}`;
+    }
+
+    // Languages
+    let languagesBadges = '';
+    if (item.languages && Array.isArray(item.languages) && item.languages.length > 0) {
+        languagesBadges = item.languages.map(lang =>
+            `<span class="language-badge">${escapeHtml(lang.toUpperCase())}</span>`
+        ).join(' ');
+    }
+
+    // Genres
+    let genresHtml = '';
+    if (item.genres && Array.isArray(item.genres) && item.genres.length > 0) {
+        genresHtml = `<div class="detail-meta-line detail-genres">${item.genres.map(g => escapeHtml(g)).join(', ')}</div>`;
+    }
+
+    // Platforms (reuse platform badges)
+    let itemPlatforms = [];
+    if (item.platform !== undefined && item.platform !== null) {
+        if (Array.isArray(item.platform)) {
+            itemPlatforms = item.platform;
+        } else if (typeof item.platform === 'string') {
+            try {
+                const parsed = JSON.parse(item.platform);
+                itemPlatforms = Array.isArray(parsed) ? parsed : [item.platform];
+            } catch {
+                itemPlatforms = [item.platform];
+            }
+        }
+    }
+    if (!Array.isArray(itemPlatforms)) {
+        itemPlatforms = [];
+    }
+    const platformDisplay = renderPlatformBadges(itemPlatforms) || '-';
+
+    // Content URL (explicit link if available)
+    let linkHtml = '';
+    if (item.content_url) {
+        const linkTitle = (item.title != null && item.title !== '') ? item.title :
+                          (item.slug != null && item.slug !== '') ? item.slug : '';
+        linkHtml = `
+            <div class="detail-meta-line">
+                <a href="${escapeHtml(item.content_url)}" target="_blank" class="content-link" onclick="event.stopPropagation();" title="${escapeHtml(linkTitle)}">
+                    Ireki edukia platforman <span class="external-link-icon">↗</span>
+                </a>
+            </div>
+        `;
+    }
+
+    // Combined inline meta row: duration, age badge, media type icon, availability, languages, platforms
+    const inlineParts = [];
+    if (item.duration) inlineParts.push(formatDuration(item.duration));
+    if (item.age_rating) inlineParts.push(`<span class="age-rating-badge">${escapeHtml(item.age_rating)}</span>`);
+    const mediaTypeIcon = item.media_type ? renderMediaTypeIcon(item.media_type) : '';
+    if (mediaTypeIcon) inlineParts.push(mediaTypeIcon);
+    if (availableText) inlineParts.push(availableText);
+    if (languagesBadges) inlineParts.push(languagesBadges);
+    if (platformDisplay) inlineParts.push(platformDisplay);
+    const inlineMeta = inlineParts.length > 0
+        ? `<div class="detail-meta-line detail-meta-inline">${inlineParts.join(' ')}</div>`
+        : '';
+
+    const descriptionHtml = hasDescription
+        ? `<p class="detail-description">${escapeHtml(description)}</p>`
+        : '';
+
+    return `
+        <tr class="detail-row">
+            <td colspan="10">
+                <div class="detail-container">
+                    ${posterHtml ? `<div class="detail-poster-wrapper">${posterHtml}</div>` : ''}
+                    <div class="detail-content">
+                        ${episodeInfo}
+                        ${metaLine}
+                        ${inlineMeta}
+                        ${genresHtml}
+                        ${linkHtml}
+                        ${descriptionHtml}
+                    </div>
+                </div>
+            </td>
         </tr>
     `;
 }

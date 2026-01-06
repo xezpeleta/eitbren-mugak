@@ -479,6 +479,7 @@ GET https://primeran.eus/api/v1/series/lau-hankan
 2. To check geo-restrictions for a series, test each episode individually
 3. Each episode has its own `slug` that can be used with the manifest endpoint
 4. Series structure: Series → Seasons → Episodes
+5. Season ordering: the **smallest `season_number` is the first season** (D1), increasing with later seasons (D2, D3, …); the API may return seasons newest-first.
 
 **Testing Geo-Restrictions for Series**:
 ```python

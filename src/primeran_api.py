@@ -38,7 +38,7 @@ class PrimeranAPI:
         self.gigya_api_key = "4_iXtBSPAhyZYN6kg3DlaQuQ"
         self.base_url = "https://primeran.eus/api/v1"
         self.authenticated = False
-    
+        
     @property
     def platform(self) -> str:
         """Return platform identifier"""

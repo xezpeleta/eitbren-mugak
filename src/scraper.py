@@ -153,37 +153,37 @@ class ContentScraper:
         try:
             # Method 1: Use search API with empty query to get all content (Primeran only)
             if self.platform == 'primeran.eus':
-                try:
-                    response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
-                    if response.status_code == 200:
-                        search_data = response.json()
-                        self._sleep()
-                        if 'data' in search_data and isinstance(search_data['data'], list):
-                            for item in search_data['data']:
-                                if 'slug' in item:
-                                    media_type = item.get('media_type', '').lower()
-                                    collection = item.get('collection', '').lower()
-                                    # Only include actual media items (not pages, collections, etc.)
-                                    if media_type != 'series' and collection in ['media', 'vod', 'movie', 'documentary', 'concert']:
-                                        slugs.add(item['slug'])
-                            print(f"  Found {len(slugs)} items from search API")
-                except Exception as e:
-                    print(f"  Search API failed: {e}")
+            try:
+                response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
+                if response.status_code == 200:
+                    search_data = response.json()
+                    self._sleep()
+                    if 'data' in search_data and isinstance(search_data['data'], list):
+                        for item in search_data['data']:
+                            if 'slug' in item:
+                                media_type = item.get('media_type', '').lower()
+                                collection = item.get('collection', '').lower()
+                                # Only include actual media items (not pages, collections, etc.)
+                                if media_type != 'series' and collection in ['media', 'vod', 'movie', 'documentary', 'concert']:
+                                    slugs.add(item['slug'])
+                        print(f"  Found {len(slugs)} items from search API")
+            except Exception as e:
+                print(f"  Search API failed: {e}")
             
             # Method 2: Parse category pages (Primeran only)
             if self.platform == 'primeran.eus':
-                categories = ['/telesailak', '/zinema', '/dokumentalak-p', '/generoak-musika']
-                for cat in categories:
-                    try:
-                        response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
-                        if response.status_code == 200:
-                            page_data = response.json()
-                            self._sleep()
-                            if 'children' in page_data:
-                                series_slugs = set()
-                                self._extract_slugs_from_children(page_data['children'], slugs, series_slugs)
-                    except Exception as e:
-                        pass
+            categories = ['/telesailak', '/zinema', '/dokumentalak-p', '/generoak-musika']
+            for cat in categories:
+                try:
+                    response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                    if response.status_code == 200:
+                        page_data = response.json()
+                        self._sleep()
+                        if 'children' in page_data:
+                            series_slugs = set()
+                            self._extract_slugs_from_children(page_data['children'], slugs, series_slugs)
+                except Exception as e:
+                    pass
             
             # Method 3: Get home content (works for both platforms)
             try:
@@ -213,37 +213,37 @@ class ContentScraper:
         try:
             # Method 1: Use search API with empty query (Primeran only)
             if self.platform == 'primeran.eus':
-                try:
-                    response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
-                    if response.status_code == 200:
-                        search_data = response.json()
-                        self._sleep()
-                        if 'data' in search_data and isinstance(search_data['data'], list):
-                            for item in search_data['data']:
-                                if 'slug' in item:
-                                    media_type = item.get('media_type', '').lower()
-                                    collection = item.get('collection', '').lower()
-                                    # Only include actual series
-                                    if media_type == 'series' or collection == 'series':
-                                        series_slugs.add(item['slug'])
+            try:
+                response = self.api.session.get('https://primeran.eus/api/v1/search?q=')
+                if response.status_code == 200:
+                    search_data = response.json()
+                    self._sleep()
+                    if 'data' in search_data and isinstance(search_data['data'], list):
+                        for item in search_data['data']:
+                            if 'slug' in item:
+                                media_type = item.get('media_type', '').lower()
+                                collection = item.get('collection', '').lower()
+                                # Only include actual series
+                                if media_type == 'series' or collection == 'series':
+                                    series_slugs.add(item['slug'])
                         print(f"  Found {len(series_slugs)} series from search API")
-                except Exception as e:
-                    print(f"  Search API failed: {e}")
+            except Exception as e:
+                print(f"  Search API failed: {e}")
             
             # Method 2: Parse category pages (Primeran only)
             if self.platform == 'primeran.eus':
-                categories = ['/telesailak', '/zinema', '/dokumentalak-p']
-                for cat in categories:
-                    try:
-                        response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
-                        if response.status_code == 200:
-                            page_data = response.json()
-                            self._sleep()
-                            if 'children' in page_data:
-                                media_slugs = set()
-                                self._extract_slugs_from_children(page_data['children'], media_slugs, series_slugs)
-                    except Exception as e:
-                        pass
+            categories = ['/telesailak', '/zinema', '/dokumentalak-p']
+            for cat in categories:
+                try:
+                    response = self.api.session.get(f'https://primeran.eus/api/v1/pages{cat}')
+                    if response.status_code == 200:
+                        page_data = response.json()
+                        self._sleep()
+                        if 'children' in page_data:
+                            media_slugs = set()
+                            self._extract_slugs_from_children(page_data['children'], media_slugs, series_slugs)
+                except Exception as e:
+                    pass
             
             # Method 3: Get home content (works for both platforms)
             try:
@@ -764,8 +764,8 @@ class ContentScraper:
                             # Pass episode_metadata so API can detect audio content
                             episode_meta_dict = episode_metadata if isinstance(episode_metadata, dict) else None
                             geo_check = self.api.check_geo_restriction(episode_slug, media_metadata=episode_meta_dict)
-                            self._sleep()
-                            
+                        self._sleep()
+                        
                             # Extract media_type from episode metadata
                             episode_media_type = None
                             if isinstance(episode_metadata, dict):
@@ -789,7 +789,7 @@ class ContentScraper:
                                     # For other cases (404, network errors, etc.), log warning but keep as None
                                     print(f"      ⚠️  Geo-restriction status unclear for {episode_slug}: {geo_check.get('error', 'Unknown error')}")
                             
-                            # Prepare content data
+                        # Prepare content data
                             # Add platform URL to metadata
                             metadata = episode_metadata.copy() if isinstance(episode_metadata, dict) else {}
                             metadata = self._add_platform_url_to_metadata(metadata, episode_slug, 'episode', series_slug)
@@ -798,35 +798,35 @@ class ContentScraper:
                             if episode_media_type:
                                 metadata['media_type'] = episode_media_type
                             
-                            content_data = {
-                                'slug': episode_slug,
+                        content_data = {
+                            'slug': episode_slug,
                                 'platform': self.platform,
                                 'title': episode_metadata.get('title') if isinstance(episode_metadata, dict) else episode.get('episode_title'),
-                                'type': 'episode',
+                            'type': 'episode',
                                 'duration': episode_metadata.get('duration') if isinstance(episode_metadata, dict) else episode.get('duration'),
                                 'year': episode_metadata.get('production_year') or (episode_metadata.get('year') if isinstance(episode_metadata, dict) else None),
                                 'genres': [g.get('name') for g in episode_metadata.get('genres', [])] if isinstance(episode_metadata, dict) else [],
-                                'series_slug': series_slug,
-                                'series_title': episode.get('series_title'),
-                                'season_number': episode.get('season_number'),
-                                'episode_number': episode.get('episode_number'),
+                            'series_slug': series_slug,
+                            'series_title': episode.get('series_title'),
+                            'season_number': episode.get('season_number'),
+                            'episode_number': episode.get('episode_number'),
                                 'is_geo_restricted': is_geo_restricted,
                                 'restriction_type': restriction_type if is_geo_restricted is not None else None,
                                 'metadata': metadata
-                            }
-                            
-                            # Save to database
-                            self.db.upsert_content(content_data)
-                            self.db.add_check_history(episode_slug, geo_check)
-                            
-                            # Update stats
-                            self.stats['total_checked'] += 1
-                            if geo_check.get('is_geo_restricted') is True:
-                                self.stats['geo_restricted'] += 1
-                            elif geo_check.get('is_geo_restricted') is False:
-                                self.stats['accessible'] += 1
-                            
-                            episode_data_list.append(content_data)
+                        }
+                        
+                        # Save to database
+                        self.db.upsert_content(content_data)
+                        self.db.add_check_history(episode_slug, geo_check)
+                        
+                        # Update stats
+                        self.stats['total_checked'] += 1
+                        if geo_check.get('is_geo_restricted') is True:
+                            self.stats['geo_restricted'] += 1
+                        elif geo_check.get('is_geo_restricted') is False:
+                            self.stats['accessible'] += 1
+                        
+                        episode_data_list.append(content_data)
                     
                 except Exception as e:
                     print(f"      Error checking episode {episode_slug}: {e}")

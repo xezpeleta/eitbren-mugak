@@ -42,7 +42,7 @@ def main():
             api = MakusiAPI()
         else:
             from src.primeran_api import PrimeranAPI
-            api = PrimeranAPI()
+        api = PrimeranAPI()
         
         api.login()
         print("✓ Authenticated")
@@ -68,8 +68,8 @@ def main():
                 test_series = ['goazen-d12', 'kody-kapow']
             else:
                 # Primeran test data
-                test_media = ['la-infiltrada', 'itoiz-udako-sesioak', 'gatibu-azken-kontzertua-zuzenean']
-                test_series = ['lau-hankan', 'krimenak-gure-kronika-beltza']
+            test_media = ['la-infiltrada', 'itoiz-udako-sesioak', 'gatibu-azken-kontzertua-zuzenean']
+            test_series = ['lau-hankan', 'krimenak-gure-kronika-beltza']
             scraper.scrape_all(media_slugs=test_media, series_slugs=test_series)
         elif args.media_slug:
             print(f"\nChecking media: {args.media_slug}")

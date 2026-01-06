@@ -216,7 +216,7 @@ class ContentDatabase:
             content_data: Dictionary with content information
                 - 'platform' can be a string (single platform) or list (multiple platforms)
                 - If slug exists, platforms will be merged
-        
+            
         Returns:
             Content ID
         """
@@ -367,12 +367,12 @@ class ContentDatabase:
                 WHERE slug = ? AND EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)
             """, (slug, platform))
         else:
-            cursor.execute("""
-                SELECT is_geo_restricted, restriction_type 
-                FROM content 
-                WHERE slug = ?
+        cursor.execute("""
+            SELECT is_geo_restricted, restriction_type 
+            FROM content 
+            WHERE slug = ?
                 LIMIT 1
-            """, (slug,))
+        """, (slug,))
         row = cursor.fetchone()
         if row:
             return {
@@ -489,7 +489,7 @@ class ContentDatabase:
         
         Args:
             platform: Filter statistics by platform (optional)
-            
+        
         Returns:
             Dictionary with statistics
         """

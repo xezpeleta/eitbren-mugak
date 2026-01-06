@@ -416,6 +416,7 @@ GET https://makusi.eus/api/v1/series/goazen-d12
 2. To check geo-restrictions for a series, test each episode individually
 3. Each episode has its own `slug` that can be used with the manifest endpoint
 4. Series structure: Series → Seasons → Episodes
+5. Season ordering: the **smallest `season_number` is the first season** (D1), increasing with later seasons (D2, D3, …); API may return seasons in reverse order.
 
 ---
 
