@@ -35,7 +35,7 @@ header {
     background: linear-gradient(135deg, #000 0%, #333 100%);
     color: white;
     padding: 2rem 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 header h1 {
@@ -65,7 +65,7 @@ main {
     background: var(--card-bg);
     padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     text-align: center;
     transition: transform 0.2s;
 }
@@ -100,7 +100,7 @@ main {
     background: var(--card-bg);
     padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .chart-container h2 {
@@ -125,7 +125,7 @@ main {
     background: var(--card-bg);
     padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .info-card h3 {
@@ -155,12 +155,45 @@ main {
     background: var(--card-bg);
     padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
+    align-items: end;
+    flex-direction: column;
+    gap: 0;
+}
+
+.filters-header {
+    display: none;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.filters-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.filters-toggle {
+    display: none;
+    background: none;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-color);
+}
+
+.filters-container {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
     align-items: end;
+    width: 100%;
 }
 
 .filter-group {
@@ -203,7 +236,7 @@ main {
     background: var(--card-bg);
     padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .table-info {
@@ -351,7 +384,8 @@ tbody tr:hover {
 .detail-container {
     display: flex;
     gap: 1.5rem;
-    padding: 1rem 1.5rem 1.25rem 3.5rem; /* indent to align with title column */
+    padding: 1rem 1.5rem 1.25rem 3.5rem;
+    /* indent to align with title column */
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
 }
@@ -367,7 +401,7 @@ tbody tr:hover {
     height: auto;
     border-radius: 6px;
     object-fit: cover;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .detail-content {
@@ -509,7 +543,7 @@ tbody tr:hover {
 
 .thumbnail-img:hover {
     transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Age Rating Badge */
@@ -565,22 +599,29 @@ tbody tr:hover {
 }
 
 /* Content Link */
-.content-link {
-    color: var(--text-color);
-    text-decoration: none;
+/* Content Link Button */
+.detail-meta-line .content-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    margin-top: 0.5rem;
 }
 
-.content-link:hover {
-    color: var(--primary-color);
-    text-decoration: underline;
+.detail-meta-line .content-link:hover {
+    background-color: #00bfa2;
+    text-decoration: none;
 }
 
 .external-link-icon {
-    font-size: 0.75rem;
-    opacity: 0.6;
+    font-size: 0.9rem;
+    opacity: 0.9;
 }
 
 .content-title-tooltip {
@@ -636,11 +677,12 @@ footer a:hover {
 }
 
 /* Responsive */
+/* Responsive */
 @media (max-width: 768px) {
     .charts-section {
         grid-template-columns: 1fr;
     }
-    
+
     .stats-overview {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -650,40 +692,368 @@ footer a:hover {
         align-items: flex-start;
     }
 
+    /* Filters Mobile Styles */
     .filters-section {
-        flex-direction: column;
+        padding: 1rem;
     }
-    
+
+    .filters-header {
+        display: flex;
+        margin-bottom: 0;
+    }
+
+    .filters-toggle {
+        display: flex;
+    }
+
+    .filters-container {
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        margin-top: 1rem;
+    }
+
+    .filters-container.open {
+        display: flex;
+    }
+
     .filter-group {
         width: 100%;
+        min-width: 0;
     }
-    
-    table {
-        font-size: 0.9rem;
+
+    .filter-group button {
+        width: 100%;
+        margin-top: 0.5rem;
     }
-    
-    th, td {
-        padding: 0.5rem;
-    }
-    
-    /* Hide thumbnail column on mobile */
-    .thumbnail-cell {
-        display: none;
-    }
-    
-    th:nth-child(2) {
-        display: none;
-    }
-    
-    /* Adjust episode indentation on mobile */
-    .episode-row {
-        padding-left: 1rem !important;
-    }
-    
-    /* Stack language badges vertically on mobile */
-    .language-badge {
+
+    /* Table Mobile "Card" View */
+    table,
+    thead,
+    tbody,
+    th,
+    td,
+    tr {
         display: block;
-        margin-bottom: 0.25rem;
-        margin-right: 0;
     }
+
+    /* Hide table headers (but not display: none;, for accessibility) */
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--card-bg);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: relative;
+        padding-bottom: 0.5rem;
+        padding-left: 90px;
+        /* Reserve space for thumbnail column */
+        min-height: 90px;
+        /* Ensure minimal height for thumbnail */
+    }
+
+    /* Hide expand toggle column as own row, make it absolute or handled differently if needed.
+       For now, we'll keep it but float it or positon it. */
+    td:first-child {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        border: none;
+        padding: 0 !important;
+        background: none;
+        width: auto;
+    }
+
+    /* Thumbnail */
+    /* Thumbnail - Absolute positioning for left column */
+    .thumbnail-cell {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 90px;
+        height: 100%;
+        padding: 0.75rem 0 0 0.75rem !important;
+        border: none;
+        text-align: left;
+    }
+
+    .thumbnail-img {
+        width: 60px;
+        height: 60px;
+        /* Make it square-ish or keep ratio */
+        height: auto;
+        max-width: 60px;
+    }
+
+    td {
+        /* Behave like a "row" */
+        border: none;
+        border-bottom: none;
+        position: relative;
+        padding: 0.25rem 1rem;
+        text-align: left;
+    }
+
+    /* Title Row */
+    td:nth-child(3) {
+        padding-top: 0.75rem;
+        font-size: 1rem;
+        line-height: 1.3;
+        padding-right: 3rem;
+        /* Space for expand button */
+        min-height: 3rem;
+        /* Ensure content clears thumbnail if short */
+    }
+
+    /* Metadata rows - Group them */
+    td:nth-child(5),
+    /* Adina */
+    td:nth-child(6),
+    /* Hizkuntza */
+    td:nth-child(7),
+    /* Iraupena */
+    td:nth-child(8)
+
+    /* Urtea */
+        {
+        display: inline-block;
+        padding: 0 0.5rem 0.25rem 0;
+        font-size: 0.85rem;
+        color: var(--secondary-color);
+        width: auto;
+    }
+
+    /* Add labels via CSS content if needed, or just style purely */
+    td:nth-child(5):empty,
+    td:nth-child(6):empty,
+    td:nth-child(7):empty,
+    td:nth-child(8):empty {
+        display: none;
+    }
+
+    /* Geo Restriction and Platform - Make them pills/badges at bottom */
+    td:nth-child(9),
+    td:nth-child(10) {
+        display: inline-block;
+        padding: 0.5rem 0.5rem 0.5rem 0;
+        width: auto;
+    }
+
+    /* Clear fix for floated thumbnail */
+    /* Clear fix removed as no floats are used */
+    tr::after {
+        content: none;
+    }
+
+    /* Detail Row adjustments */
+    /* Detail Row adjustments */
+    .detail-container {
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .detail-poster-wrapper {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-poster {
+        max-width: 100%;
+        width: 150px;
+        /* Force a reasonable size for the poster */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .detail-content {
+        padding: 0 0.5rem;
+    }
+
+    .detail-description {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--text-color);
+    }
+
+    .detail-row td {
+        display: block;
+        width: 100%;
+        padding: 0;
+    }
+
+
+
+    /* Fix detail row specifically */
+    tr.detail-row {
+        padding-left: 0;
+        min-height: auto;
+        border-top: none;
+        margin-top: -1rem;
+        /* Connect to the row above */
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        background: #fafafa;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+        /* Ensure it stays on top if needed */
+    }
+}
+
+/* Mobile Full Screen Detail Modal */
+.mobile-detail-modal {
+    display: none;
+    /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    background-color: #000;
+    overflow-y: auto;
+}
+
+.mobile-detail-modal.open {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-detail-content {
+    position: relative;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-detail-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2010;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.mobile-detail-image-container {
+    position: relative;
+    width: 100%;
+    height: 60vh;
+    /* Takes up top 60% of screen */
+    flex-shrink: 0;
+}
+
+.mobile-detail-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-detail-gradient {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 80%;
+    background: linear-gradient(to bottom, transparent 0%, #121212 90%);
+    pointer-events: none;
+}
+
+.mobile-detail-info {
+    position: relative;
+    padding: 1.5rem;
+    margin-top: -4rem;
+    /* Overlap with gradient */
+    background: #121212;
+    /* Match dark theme bg */
+    flex-grow: 1;
+    color: #e0e0e0;
+}
+
+#mobile-detail-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: #b0b0b0;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.mobile-detail-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#mobile-detail-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #d0d0d0;
+    margin-bottom: 2rem;
+}
+
+.mobile-content-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem;
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.mobile-content-link:active {
+    transform: scale(0.98);
+}
+
+/* Ensure no scrolling on body when modal is open */
+body.modal-open {
+    overflow: hidden;
 }

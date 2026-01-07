@@ -87,16 +87,16 @@ async function loadContent() {
         const response = await fetch('data/content.json');
         const data = await response.json();
         allContent = data.content || [];
-        
+
         groupContentBySeries();
         filteredGroupedContent = JSON.parse(JSON.stringify(groupedContent));
-        
+
         populateFilters();
         renderTable();
         updateResultsCount();
     } catch (error) {
         console.error('Error loading content:', error);
-        document.getElementById('content-tbody').innerHTML = 
+        document.getElementById('content-tbody').innerHTML =
             '<tr><td colspan="10" style="color: red;">Error loading content. Please ensure data/content.json exists.</td></tr>';
     }
 }
@@ -107,7 +107,7 @@ function groupContentBySeries() {
     const standalone = [];
     const seriesRecords = new Map(); // Map of series records (type === 'series')
     const seriesMap = new Map(); // Map of series groups (from episodes)
-    
+
     // First pass: separate content by type
     allContent.forEach(item => {
         if (item.type === 'series') {
@@ -121,14 +121,14 @@ function groupContentBySeries() {
             standalone.push(item);
         }
     });
-    
+
     // Group episodes by series
     episodes.forEach(episode => {
         const seriesSlug = episode.series_slug;
         if (!seriesMap.has(seriesSlug)) {
             // Check if we have a series record for this slug
             const seriesRecord = seriesRecords.get(seriesSlug);
-            
+
             seriesMap.set(seriesSlug, {
                 series_slug: seriesSlug,
                 series_title: seriesRecord ? seriesRecord.title : (episode.series_title || seriesSlug),
@@ -141,11 +141,11 @@ function groupContentBySeries() {
                 platform: seriesRecord ? seriesRecord.platform : episode.platform // Use series record platform if available
             });
         }
-        
+
         const series = seriesMap.get(seriesSlug);
         series.episodes.push(episode);
         series.episode_count++;
-        
+
         if (episode.is_geo_restricted === true) {
             series.restricted_count++;
         } else if (episode.is_geo_restricted === false) {
@@ -154,7 +154,7 @@ function groupContentBySeries() {
             series.unknown_count++;
         }
     });
-    
+
     // Also add series records that don't have episodes yet (if any)
     seriesRecords.forEach((seriesRecord, slug) => {
         if (!seriesMap.has(slug)) {
@@ -172,7 +172,7 @@ function groupContentBySeries() {
             });
         }
     });
-    
+
     groupedContent = {
         series: Array.from(seriesMap.values()),
         standalone: standalone
@@ -236,6 +236,27 @@ function populateFilters() {
     populateLanguageFilter();
     populatePlatformFilter();
     populateMediaTypeFilter();
+
+    // Mobile filters toggle
+    const filtersToggle = document.getElementById('filters-toggle');
+    const filtersContainer = document.getElementById('filters-container');
+
+    if (filtersToggle && filtersContainer) {
+        filtersToggle.addEventListener('click', () => {
+            const isExpanded = filtersToggle.getAttribute('aria-expanded') === 'true';
+
+            // Toggle state
+            filtersToggle.setAttribute('aria-expanded', !isExpanded);
+            filtersContainer.classList.toggle('open');
+
+            // Update button text/icon
+            const toggleText = filtersToggle.querySelector('.toggle-text');
+            const toggleIcon = filtersToggle.querySelector('.toggle-icon');
+
+            if (toggleText) toggleText.textContent = isExpanded ? 'Erakutsi' : 'Ezkutatu';
+            if (toggleIcon) toggleIcon.textContent = isExpanded ? '▼' : '▲';
+        });
+    }
 }
 
 // Populate type filter dropdown
@@ -250,7 +271,7 @@ function populateTypeFilter() {
             .map(item => item.type)
             .filter(type => type && type !== 'series')
     )].sort();
-    
+
     types.forEach(type => {
         const option = document.createElement('option');
         option.value = type;
@@ -263,7 +284,7 @@ function populateTypeFilter() {
 function populateAgeRatingFilter() {
     const ageFilter = document.getElementById('age-rating-filter');
     const ratings = [...new Set(allContent.map(item => item.age_rating).filter(Boolean))].sort();
-    
+
     ratings.forEach(rating => {
         const option = document.createElement('option');
         option.value = rating;
@@ -276,13 +297,13 @@ function populateAgeRatingFilter() {
 function populateLanguageFilter() {
     const langFilter = document.getElementById('language-filter');
     const languages = new Set();
-    
+
     allContent.forEach(item => {
         if (item.languages && Array.isArray(item.languages)) {
             item.languages.forEach(lang => languages.add(lang));
         }
     });
-    
+
     Array.from(languages).sort().forEach(lang => {
         const option = document.createElement('option');
         option.value = lang;
@@ -295,23 +316,23 @@ function populateLanguageFilter() {
 function populatePlatformFilter() {
     const platformFilter = document.getElementById('platform-filter');
     const platformsSet = new Set();
-    
+
     // Clear existing options except "Guztia"
     while (platformFilter.children.length > 1) {
         platformFilter.removeChild(platformFilter.lastChild);
     }
-    
+
     // Extract platforms from array (platform is now a JSON array)
     allContent.forEach(item => {
-        const itemPlatforms = Array.isArray(item.platform) ? item.platform : 
-                             (typeof item.platform === 'string' ? JSON.parse(item.platform) : []);
+        const itemPlatforms = Array.isArray(item.platform) ? item.platform :
+            (typeof item.platform === 'string' ? JSON.parse(item.platform) : []);
         itemPlatforms.forEach(p => {
             if (p) platformsSet.add(p);
         });
     });
-    
+
     const platforms = [...platformsSet].sort();
-    
+
     platforms.forEach(platform => {
         const option = document.createElement('option');
         option.value = platform;
@@ -325,20 +346,20 @@ function populatePlatformFilter() {
 // Populate media type filter
 function populateMediaTypeFilter() {
     const mediaTypeFilter = document.getElementById('media-type-filter');
-    
+
     // Clear existing options except "Guztia"
     while (mediaTypeFilter.children.length > 1) {
         mediaTypeFilter.removeChild(mediaTypeFilter.lastChild);
     }
-    
+
     const mediaTypes = [...new Set(allContent.map(item => item.media_type).filter(Boolean))].sort();
-    
+
     // Map English values to Basque display names
     const mediaTypeLabels = {
         'audio': 'Audio',
         'video': 'Bideo'
     };
-    
+
     mediaTypes.forEach(mediaType => {
         const option = document.createElement('option');
         option.value = mediaType;
@@ -354,29 +375,29 @@ function applyFilters() {
     const restrictionFilter = document.getElementById('restriction-filter').value;
     const ageRatingFilter = document.getElementById('age-rating-filter').value;
     const languageFilter = document.getElementById('language-filter').value;
-    
+
     // Get platform filter
     const platformFilter = document.getElementById('platform-filter').value;
-    
+
     // Get media type filter
     const mediaTypeFilter = document.getElementById('media-type-filter').value;
-    
+
     // Filter standalone content
     filteredGroupedContent.standalone = groupedContent.standalone.filter(item => {
         return matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter, mediaTypeFilter);
     });
-    
+
     // Filter series and their episodes
     filteredGroupedContent.series = groupedContent.series.map(series => {
         const filteredEpisodes = series.episodes.filter(episode => {
             return matchesFilters(episode, searchTerm, typeFilter, restrictionFilter, ageRatingFilter, languageFilter, platformFilter, mediaTypeFilter);
         });
-        
+
         // Only include series if it has matching episodes
         if (filteredEpisodes.length === 0) {
             return null;
         }
-        
+
         // Recalculate counts
         const newSeries = {
             ...series,
@@ -386,18 +407,18 @@ function applyFilters() {
             accessible_count: filteredEpisodes.filter(e => e.is_geo_restricted === false).length,
             unknown_count: filteredEpisodes.filter(e => e.is_geo_restricted !== true && e.is_geo_restricted !== false).length
         };
-        
+
         return newSeries;
     }).filter(series => series !== null);
-    
+
     // Apply current sort
     if (currentSort.field) {
         sortContent(currentSort.field, currentSort.direction, false);
     }
-    
+
     // Reset to first page after filtering
     currentPage = 1;
-    
+
     renderTable();
     updateResultsCount();
 }
@@ -411,17 +432,17 @@ function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRati
             item.description,
             item.series_title
         ].filter(Boolean).join(' ').toLowerCase();
-        
+
         if (!searchableText.includes(searchTerm)) {
             return false;
         }
     }
-    
+
     // Type filter
     if (typeFilter && item.type !== typeFilter) {
         return false;
     }
-    
+
     // Restriction filter
     if (restrictionFilter !== '') {
         const isRestricted = item.is_geo_restricted;
@@ -429,19 +450,19 @@ function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRati
         if (restrictionFilter === 'false' && isRestricted !== false) return false;
         if (restrictionFilter === 'null' && isRestricted !== null) return false;
     }
-    
+
     // Age rating filter
     if (ageRatingFilter && item.age_rating !== ageRatingFilter) {
         return false;
     }
-    
+
     // Language filter
     if (languageFilter) {
         if (!item.languages || !Array.isArray(item.languages) || !item.languages.includes(languageFilter)) {
             return false;
         }
     }
-    
+
     // Platform filter - check if platform array includes the filter value
     if (platformFilter) {
         let itemPlatforms = [];
@@ -461,12 +482,12 @@ function matchesFilters(item, searchTerm, typeFilter, restrictionFilter, ageRati
             return false;
         }
     }
-    
+
     // Media type filter (audio/video)
     if (mediaTypeFilter && item.media_type !== mediaTypeFilter) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -476,7 +497,7 @@ function sortContent(field, direction = 'asc', updateUI = true) {
     filteredGroupedContent.standalone.sort((a, b) => {
         return compareValues(a[field], b[field], direction);
     });
-    
+
     // Sort series
     filteredGroupedContent.series.sort((a, b) => {
         // For series, we might want to sort by series title or episode count
@@ -488,14 +509,14 @@ function sortContent(field, direction = 'asc', updateUI = true) {
             return compareValues(a.series_title, b.series_title, direction);
         }
     });
-    
+
     // Sort episodes within each series
     filteredGroupedContent.series.forEach(series => {
         series.episodes.sort((a, b) => {
             return compareValues(a[field], b[field], direction);
         });
     });
-    
+
     if (updateUI) {
         currentSort = { field, direction };
         updateSortIndicators();
@@ -511,16 +532,16 @@ function compareValues(aVal, bVal, direction) {
     // Handle null/undefined
     if (aVal == null) aVal = '';
     if (bVal == null) bVal = '';
-    
+
     // Handle numbers
     if (typeof aVal === 'number' && typeof bVal === 'number') {
         return direction === 'asc' ? aVal - bVal : bVal - aVal;
     }
-    
+
     // Handle strings
     aVal = String(aVal).toLowerCase();
     bVal = String(bVal).toLowerCase();
-    
+
     if (direction === 'asc') {
         return aVal.localeCompare(bVal);
     } else {
@@ -537,7 +558,7 @@ function updateSortIndicators() {
             indicator.textContent = '';
         }
     });
-    
+
     if (currentSort.field) {
         const th = document.querySelector(`th[data-sort="${currentSort.field}"]`);
         if (th) {
@@ -559,16 +580,16 @@ function toggleSeriesExpansion(seriesSlug) {
 // Render table
 function renderTable() {
     const tbody = document.getElementById('content-tbody');
-    
+
     const allRows = buildFlattenedRows();
     const totalRows = allRows.length;
-    
+
     if (totalRows === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="loading">No content found matching filters.</td></tr>';
         renderPagination(1, 0, 0, 0);
         return;
     }
-    
+
     const pageCount = getPageCount(totalRows);
     if (currentPage > pageCount) {
         currentPage = pageCount;
@@ -598,7 +619,7 @@ function renderTable() {
     const pageRows = allRows.slice(startIndex, endIndex);
 
     let html = '';
-    
+
     pageRows.forEach(row => {
         if (row.type === 'standalone') {
             const item = row.item;
@@ -618,9 +639,9 @@ function renderTable() {
             }
         }
     });
-    
+
     tbody.innerHTML = html;
-    
+
     // Re-attach event listeners for expand/collapse buttons
     document.querySelectorAll('.expand-toggle').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -636,6 +657,22 @@ function renderTable() {
             const slug = rowEl.getAttribute('data-slug');
             if (!slug) return;
 
+            if (window.innerWidth <= 768) {
+                // Mobile: Open Modal
+                // Find item data from pageRows (which is in closure scope)
+                let item = null;
+                const rowData = pageRows.find(r => r.item && r.item.slug === slug);
+                if (rowData) {
+                    item = rowData.item;
+                }
+
+                if (item) {
+                    openMobileDetail(item);
+                }
+                return; // Stop here, don't expand row
+            }
+
+            // Desktop: Expand/Collapse Row
             // Clicking an already expanded row collapses it.
             // Clicking a different row collapses any other and expands this one.
             if (expandedRows.has(slug)) {
@@ -649,6 +686,7 @@ function renderTable() {
         });
     });
 
+
     // Update pagination controls
     renderPagination(pageCount, totalRows, startIndex, endIndex);
 }
@@ -658,7 +696,7 @@ function renderPlatformBadges(platforms) {
     if (!platforms || platforms.length === 0) {
         return '-';
     }
-    
+
     const badges = platforms.map(platform => {
         // Extract platform name (e.g., "primeran.eus" -> "primeran")
         const platformName = platform.replace('.eus', '').toLowerCase();
@@ -666,10 +704,10 @@ function renderPlatformBadges(platforms) {
         const badgeClass = `platform-badge-${platformName}`;
         // Display name (capitalize first letter)
         const displayName = platformName.charAt(0).toUpperCase() + platformName.slice(1);
-        
+
         return `<span class="platform-badge ${badgeClass}">${escapeHtml(displayName)}</span>`;
     });
-    
+
     return badges.join(' ');
 }
 
@@ -706,7 +744,7 @@ function renderSeriesRow(series, isExpanded) {
     const restrictedCount = series.restricted_count;
     const accessibleCount = series.accessible_count;
     const totalCount = series.episode_count;
-    
+
     let restrictionSummary = '';
     if (restrictedCount > 0) {
         restrictionSummary += `<span class="status-badge status-restricted">${restrictedCount} Murriztua</span> `;
@@ -717,7 +755,7 @@ function renderSeriesRow(series, isExpanded) {
     if (series.unknown_count > 0) {
         restrictionSummary += `<span class="status-badge status-unknown">${series.unknown_count} Ezezaguna</span>`;
     }
-    
+
     // Get thumbnail from first episode if available
     let thumbnailHtml = '-';
     if (series.episodes && series.episodes.length > 0) {
@@ -726,9 +764,9 @@ function renderSeriesRow(series, isExpanded) {
             thumbnailHtml = `<img src="${escapeHtml(firstEpisode.thumbnail)}" alt="${escapeHtml(series.series_title)}" class="thumbnail-img" loading="lazy" onerror="this.style.display='none'">`;
         }
     }
-    
+
     const expandIcon = isExpanded ? '▼' : '▶';
-    
+
     // Get platform from first episode if available
     const firstEpisodePlatform = series.episodes && series.episodes.length > 0 ? series.episodes[0].platform : null;
     let platforms = [];
@@ -745,7 +783,7 @@ function renderSeriesRow(series, isExpanded) {
         }
     }
     const platformDisplay = renderPlatformBadges(platforms);
-    
+
     // IMPORTANT: Column order must match HTML header in index.html
     // 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
     // 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
@@ -773,57 +811,53 @@ function renderSeriesRow(series, isExpanded) {
 function renderContentRow(item, isEpisode, isExpanded) {
     // Only show "Murriztua" or "Murriztu gabea", not "Ezezaguna"
     const restrictedStatus = item.is_geo_restricted === true ? 'Murriztua' :
-                            item.is_geo_restricted === false ? 'Murriztu gabea' : '-';
+        item.is_geo_restricted === false ? 'Murriztu gabea' : '-';
     const statusClass = item.is_geo_restricted === true ? 'status-restricted' :
-                       item.is_geo_restricted === false ? 'status-accessible' : '';
-    
+        item.is_geo_restricted === false ? 'status-accessible' : '';
+
     const duration = item.duration ? formatDuration(item.duration) : '-';
-    
+
     // Thumbnail
     let thumbnailHtml = '-';
     if (item.thumbnail) {
         thumbnailHtml = `<img src="${escapeHtml(item.thumbnail)}" alt="${escapeHtml(item.title || '')}" class="thumbnail-img" loading="lazy" onerror="this.style.display='none'">`;
     }
-    
+
     // Title with link and tooltip
     // Handle null/undefined explicitly - JSON null becomes JavaScript null
-    const title = (item.title != null && item.title !== '') ? item.title : 
-                  (item.slug != null && item.slug !== '') ? item.slug :
-                  (item.series_title != null && item.series_title !== '') ? item.series_title : '-';
-    
+    const title = (item.title != null && item.title !== '') ? item.title :
+        (item.slug != null && item.slug !== '') ? item.slug :
+            (item.series_title != null && item.series_title !== '') ? item.series_title : '-';
+
     // Debug: Log if title seems wrong
     if (item.slug && item.slug.includes('christmas') && title === 'vod') {
         console.error('Title issue detected:', { slug: item.slug, title: item.title, type: item.type, computedTitle: title });
     }
-    
+
+
     let titleHtml = escapeHtml(title);
-    if (item.content_url) {
-        const linkTitle = (item.description != null && item.description !== '') ? item.description :
-                          (item.title != null && item.title !== '') ? item.title :
-                          (item.slug != null && item.slug !== '') ? item.slug : '';
-        titleHtml = `<a href="${escapeHtml(item.content_url)}" target="_blank" class="content-link" title="${escapeHtml(linkTitle)}">${titleHtml} <span class="external-link-icon">↗</span></a>`;
-    } else if (item.description != null && item.description !== '') {
-        titleHtml = `<span class="content-title-tooltip" title="${escapeHtml(item.description)}">${titleHtml}</span>`;
-    }
-    
+    // Removed direct link on title to ensure row click always triggers expansion.
+    // Link is now available in the detail view.
+    // Tooltip removed as per UX request.
+
     // Age rating badge
     let ageRatingHtml = '-';
     if (item.age_rating) {
         ageRatingHtml = `<span class="age-rating-badge">${escapeHtml(item.age_rating)}</span>`;
     }
-    
+
     // Language badges
     let languagesHtml = '-';
     if (item.languages && Array.isArray(item.languages) && item.languages.length > 0) {
-        languagesHtml = item.languages.map(lang => 
+        languagesHtml = item.languages.map(lang =>
             `<span class="language-badge">${escapeHtml(lang.toUpperCase())}</span>`
         ).join(' ');
     }
-    
+
     // Episode indicator
     const rowClass = isEpisode ? 'episode-row' : '';
     const indentStyle = isEpisode && isExpanded ? 'padding-left: 2rem;' : '';
-    
+
     // Platform display - handle as array
     let itemPlatforms = [];
     if (item.platform !== undefined && item.platform !== null) {
@@ -838,14 +872,14 @@ function renderContentRow(item, isEpisode, isExpanded) {
             }
         }
     }
-    
+
     // Ensure we have a valid array
     if (!Array.isArray(itemPlatforms)) {
         itemPlatforms = [];
     }
-    
+
     const platformDisplay = renderPlatformBadges(itemPlatforms) || '-';
-    
+
     // IMPORTANT: Column order must match HTML header in index.html
     // 1. Empty (expand button), 2. Image, 3. Title, 4. Type, 5. Age, 6. Languages,
     // 7. Duration, 8. Year, 9. Geo-Restriction, 10. Platform (LAST)
@@ -960,7 +994,7 @@ function renderDetailRow(item, isEpisode) {
     let linkHtml = '';
     if (item.content_url) {
         const linkTitle = (item.title != null && item.title !== '') ? item.title :
-                          (item.slug != null && item.slug !== '') ? item.slug : '';
+            (item.slug != null && item.slug !== '') ? item.slug : '';
         linkHtml = `
             <div class="detail-meta-line">
                 <a href="${escapeHtml(item.content_url)}" target="_blank" class="content-link" onclick="event.stopPropagation();" title="${escapeHtml(linkTitle)}">
@@ -1012,7 +1046,7 @@ function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
         return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
@@ -1033,7 +1067,7 @@ function updateResultsCount() {
     const episodeCount = filteredGroupedContent.series.reduce((sum, s) => sum + s.episode_count, 0);
     const seriesCount = filteredGroupedContent.series.length;
     const totalCount = standaloneCount + episodeCount;
-    
+
     const totalRows = getTotalRows();
     const pageCount = getPageCount(totalRows);
     const countText = `${totalCount.toLocaleString()} elementu (${standaloneCount} filma, ${seriesCount} serie, ${episodeCount} atalekin) — Orrialdea ${currentPage} / ${pageCount}`;
@@ -1090,7 +1124,7 @@ function clearFilters() {
 // Event listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadContent();
-    
+
     // Filter inputs
     document.getElementById('search-input').addEventListener('input', applyFilters);
     document.getElementById('type-filter').addEventListener('change', applyFilters);
@@ -1100,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('platform-filter').addEventListener('change', applyFilters);
     document.getElementById('media-type-filter').addEventListener('change', applyFilters);
     document.getElementById('clear-filters').addEventListener('click', clearFilters);
-    
+
     // Pagination controls
     const pageSizeSelect = document.getElementById('page-size');
     if (pageSizeSelect) {
@@ -1122,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalRows = getTotalRows();
         goToPage(getPageCount(totalRows));
     });
-    
+
     // Sort headers
     document.querySelectorAll('th[data-sort]').forEach(th => {
         th.addEventListener('click', () => {
@@ -1132,4 +1166,88 @@ document.addEventListener('DOMContentLoaded', () => {
             sortContent(field, newDirection);
         });
     });
+});
+
+// Mobile Detail Modal Functions
+function openMobileDetail(item) {
+    const modal = document.getElementById('mobile-detail-modal');
+    if (!modal) return;
+
+    // Populate Content
+    const poster = document.getElementById('mobile-detail-poster');
+    poster.src = item.thumbnail || '';
+    poster.style.display = item.thumbnail ? 'block' : 'none';
+
+    document.getElementById('mobile-detail-title').textContent =
+        (item.title != null && item.title !== '') ? item.title :
+            (item.series_title != null && item.series_title !== '') ? item.series_title :
+                (item.slug || 'Izenbururik gabe');
+
+    document.getElementById('mobile-detail-description').textContent = item.description || 'Ez dago deskribapenik eskuragarri.';
+
+    // Meta (Year, Duration, Age)
+    const metaContainer = document.getElementById('mobile-detail-meta');
+    metaContainer.innerHTML = '';
+
+    if (item.year) metaContainer.innerHTML += `<span>${item.year}</span> • `;
+    // Check if formatDuration is available globally or needs to be copied/exposed. It is global in content.js
+    if (item.duration) metaContainer.innerHTML += `<span>${formatDuration(item.duration)}</span> • `;
+    if (item.age_rating) metaContainer.innerHTML += `<span class="age-rating-badge">${item.age_rating}</span>`;
+
+    // Badges (Platform, Geo)
+    const badgesContainer = document.getElementById('mobile-detail-badges');
+    badgesContainer.innerHTML = '';
+
+    // Platform
+    let platforms = [];
+    if (item.platform) {
+        try {
+            platforms = Array.isArray(item.platform) ? item.platform : JSON.parse(item.platform);
+        } catch {
+            platforms = [item.platform];
+        }
+    }
+    if (!Array.isArray(platforms)) platforms = [platforms];
+
+    // renderPlatformBadges is defined in content.js
+    const platformHtml = renderPlatformBadges(platforms);
+    if (platformHtml) badgesContainer.innerHTML += platformHtml;
+
+    // Geo
+    if (item.is_geo_restricted === true) {
+        badgesContainer.innerHTML += `<span class="status-badge status-restricted">Murriztua</span>`;
+    } else if (item.is_geo_restricted === false) {
+        badgesContainer.innerHTML += `<span class="status-badge status-accessible">Murriztu gabea</span>`;
+    }
+
+    // Link
+    const linkBtn = document.getElementById('mobile-detail-link');
+    if (item.content_url) {
+        linkBtn.href = item.content_url;
+        linkBtn.style.display = 'flex';
+    } else {
+        linkBtn.style.display = 'none';
+    }
+
+    // Show Modal
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}
+
+function closeMobileDetail() {
+    const modal = document.getElementById('mobile-detail-modal');
+    if (!modal) return;
+
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+}
+
+// Initialize Mobile Modal Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('mobile-detail-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMobileDetail);
+    }
 });

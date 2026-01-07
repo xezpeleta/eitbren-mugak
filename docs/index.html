@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EITBHub</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <header>
         <div class="container">
@@ -16,51 +18,63 @@
 
     <main class="container">
         <section class="filters-section">
-            <div class="filter-group">
-                <label for="search-input">Bilatu:</label>
-                <input type="text" id="search-input" placeholder="Bilatu izenburuan...">
+            <!-- Filters Header / Toggle for Mobile -->
+            <div class="filters-header">
+                <h2>Filtroak</h2>
+                <button id="filters-toggle" class="filters-toggle" aria-expanded="false"
+                    aria-controls="filters-container">
+                    <span class="toggle-text">Erakutsi</span>
+                    <span class="toggle-icon">▼</span>
+                </button>
             </div>
-            <div class="filter-group">
-                <label for="type-filter">Mota:</label>
-                <select id="type-filter">
-                    <option value="">Guztia</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="restriction-filter">Geo-Murrizketa:</label>
-                <select id="restriction-filter">
-                    <option value="">Guztia</option>
-                    <option value="true">Murriztua</option>
-                    <option value="false">Murriztu gabea</option>
-                    <option value="null">Ezezaguna</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="age-rating-filter">Adina:</label>
-                <select id="age-rating-filter">
-                    <option value="">Guztia</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="language-filter">Hizkuntza:</label>
-                <select id="language-filter">
-                    <option value="">Guztiak</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="platform-filter">Plataforma:</label>
-                <select id="platform-filter">
-                    <option value="">Guztia</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="media-type-filter">Media mota:</label>
-                <select id="media-type-filter">
-                    <option value="">Guztia</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <button id="clear-filters">Ezabatu filtroak</button>
+
+            <div id="filters-container" class="filters-container">
+                <div class="filter-group">
+                    <label for="search-input">Bilatu:</label>
+                    <input type="text" id="search-input" placeholder="Bilatu izenburuan...">
+                </div>
+                <div class="filter-group">
+                    <label for="type-filter">Mota:</label>
+                    <select id="type-filter">
+                        <option value="">Guztia</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="restriction-filter">Geo-Murrizketa:</label>
+                    <select id="restriction-filter">
+                        <option value="">Guztia</option>
+                        <option value="true">Murriztua</option>
+                        <option value="false">Murriztu gabea</option>
+                        <option value="null">Ezezaguna</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="age-rating-filter">Adina:</label>
+                    <select id="age-rating-filter">
+                        <option value="">Guztia</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="language-filter">Hizkuntza:</label>
+                    <select id="language-filter">
+                        <option value="">Guztiak</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="platform-filter">Plataforma:</label>
+                    <select id="platform-filter">
+                        <option value="">Guztia</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="media-type-filter">Media mota:</label>
+                    <select id="media-type-filter">
+                        <option value="">Guztia</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button id="clear-filters">Ezabatu filtroak</button>
+                </div>
             </div>
         </section>
 
@@ -133,13 +147,36 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 EITBHub | 
-               <a href="https://github.com/xezpeleta/eitbhub">Source Code</a> |
-               <a href="stats.html">Show stats</a>
+            <p>&copy; 2026 EITBHub |
+                <a href="https://github.com/xezpeleta/eitbhub">Source Code</a> |
+                <a href="stats.html">Show stats</a>
             </p>
         </div>
     </footer>
 
+    <!-- Mobile Full Screen Detail Modal -->
+    <div id="mobile-detail-modal" class="mobile-detail-modal" aria-hidden="true">
+        <div class="mobile-detail-content">
+            <button id="mobile-detail-close" class="mobile-detail-close" aria-label="Close details">×</button>
+            <div class="mobile-detail-image-container">
+                <img id="mobile-detail-poster" src="" alt="" class="mobile-detail-poster">
+                <div class="mobile-detail-gradient"></div>
+            </div>
+            <div class="mobile-detail-info">
+                <h2 id="mobile-detail-title"></h2>
+                <div id="mobile-detail-meta" class="mobile-detail-meta"></div>
+                <div id="mobile-detail-badges" class="mobile-detail-badges"></div>
+                <p id="mobile-detail-description"></p>
+                <div id="mobile-detail-actions">
+                    <a id="mobile-detail-link" href="#" target="_blank" class="mobile-content-link">
+                        Ireki edukia platforman <span class="external-link-icon">↗</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/content.js"></script>
 </body>
+
 </html>
