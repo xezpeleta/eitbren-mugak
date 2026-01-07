@@ -198,39 +198,98 @@ class EtbonAPI:
                         "media_type": media_type or "video",
                     }
 
-            # If API returns success, check for CDN manifests
+            # If API returns success, check for manifests
             if api_response.status_code == 200:
                 api_data = api_response.json()
                 manifests = api_data.get("manifests", [])
+                
+                last_restricted_result = None
 
-                # Step 2: Check CDN-level geo-restriction for CDN manifests
-                # Some content returns 200 at API level but blocks at CDN with HTTP 451
+                # Step 2: Check manifests from API response
+                # This handles both CDN-level blocks (HTTP 451) and standard checking
                 for manifest in manifests:
+                    # We are primarily interested in DASH manifests
+                    if manifest.get("type") != "dash":
+                        continue
+                        
                     manifest_url = manifest.get("manifestURL", "")
+                    if not manifest_url:
+                        continue
 
-                    # Only check CDN manifests (not relative URLs)
-                    if manifest.get("type") == "dash" and manifest_url.startswith(
-                        "https://cdn"
-                    ):
-                        cdn_check = self._check_cdn_geo_restriction(manifest_url)
-                        if cdn_check is not None:
+                    # Handle relative URLs (common for etbon.eus)
+                    if manifest_url.startswith("/"):
+                        manifest_url = f"https://etbon.eus{manifest_url}"
+                    
+                    check_result = None
+
+                    # Use specialized check for CDN URLs (which might block at segment level)
+                    if manifest_url.startswith("https://cdn"):
+                        check_result = self._check_cdn_geo_restriction(manifest_url)
+                    else:
+                        # Standard check for direct URLs
+                        check_result = self._check_standard_manifest(manifest_url)
+
+                    if check_result is not None:
+                        # If we find an ACCESSIBLE manifest, the content is accessible
+                        if check_result["accessible"]:
                             return {
-                                "status_code": cdn_check["status_code"],
-                                "accessible": cdn_check["accessible"],
-                                "is_geo_restricted": cdn_check["is_geo_restricted"],
-                                "error": cdn_check["error"],
+                                "status_code": check_result.get("status_code", 200),
+                                "accessible": True,
+                                "is_geo_restricted": False,
+                                "error": None,
                                 "media_type": media_type or "video",
                             }
+                        
+                        # If we find a RESTRICTED manifest, keep it but continue checking others
+                        # (in case another manifest works)
+                        if check_result.get("is_geo_restricted"):
+                            last_restricted_result = check_result
+
+                # If we iterated all manifests and found no accessible ones, but did find a restricted one,
+                # then return the restricted result.
+                if last_restricted_result:
+                    return {
+                        "status_code": last_restricted_result.get("status_code"),
+                        "accessible": False,
+                        "is_geo_restricted": True,
+                        "error": last_restricted_result.get("error"),
+                        "media_type": media_type or "video",
+                    }
 
         except requests.exceptions.RequestException:
             # If API check fails, fall through to standard manifest check
             pass
 
-        # Step 3: Fallback to standard manifest URL test (same as primeran/makusi)
+        # Step 3: Fallback to constructed manifest URL if no API manifests worked
+        # (same as primeran/makusi logic)
         manifest_url = (
             f"https://etbon.eus/manifests/{slug}/{language}/widevine/dash.mpd"
         )
+        
+        check_result = self._check_standard_manifest(manifest_url)
+        if check_result:
+            # Augment result with media_type
+            check_result["media_type"] = media_type or "video"
+            return check_result
+            
+        return {
+            "status_code": None,
+            "accessible": False,
+            "is_geo_restricted": None,
+            "error": "Could not determine geo-restriction status",
+            "media_type": media_type or "video",
+        }
 
+    def _check_standard_manifest(self, manifest_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Check a standard manifest URL (non-CDN deep inspection)
+        
+        Args:
+            manifest_url: Full manifest URL
+            
+        Returns:
+            Dictionary with check result or None if check completely fails
+        """
         try:
             response = self.session.get(manifest_url, timeout=10)
             status_code = response.status_code
@@ -239,7 +298,6 @@ class EtbonAPI:
                 "status_code": status_code,
                 "accessible": status_code == 200,
                 "error": None,
-                "media_type": media_type or "video",
             }
 
             if status_code == 200:
@@ -260,14 +318,8 @@ class EtbonAPI:
 
             return result
 
-        except requests.exceptions.RequestException as e:
-            return {
-                "status_code": None,
-                "accessible": False,
-                "is_geo_restricted": None,
-                "error": str(e),
-                "media_type": media_type or "video",
-            }
+        except Exception as e:
+            return None
 
     def _check_cdn_geo_restriction(
         self, cdn_manifest_url: str
