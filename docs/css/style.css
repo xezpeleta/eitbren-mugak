@@ -1073,7 +1073,8 @@ footer a:hover {
 }
 
 .mobile-detail-modal.open {
-    display: block;
+    display: flex;
+    /* IMPORTANT: Must be flex, not block, to enable flex-direction: column */
     animation: fadeIn 0.3s ease-out;
 }
 
@@ -1096,6 +1097,8 @@ footer a:hover {
     flex-direction: column;
     /* This area scrolls inside the fixed modal frame */
     flex: 1;
+    min-height: 0;
+    /* CRITICAL: Allows flex item to shrink below content size, enabling scrolling */
     overflow-y: auto;
     overflow-x: hidden;
     width: 100%;
@@ -1176,12 +1179,13 @@ footer a:hover {
     /* Overlap with gradient */
     background: #121212;
     /* Match dark theme bg */
-    flex-grow: 1;
     color: #e0e0e0;
     padding-bottom: 1rem;
     /* Reduced padding since actions are now inside */
     max-width: 100vw;
     box-sizing: border-box;
+    flex-shrink: 0;
+    /* Don't shrink, but don't grow either - natural size based on content */
 }
 
 #mobile-detail-title {
