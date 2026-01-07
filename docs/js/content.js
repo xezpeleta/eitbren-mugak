@@ -1089,6 +1089,12 @@ function updateResultsCount() {
     const pageCount = getPageCount(totalRows);
     const countText = `${totalCount.toLocaleString()} elementu (${standaloneCount} filma, ${seriesCount} serie, ${episodeCount} atalekin) — Orrialdea ${currentPage} / ${pageCount}`;
     document.getElementById('results-count').textContent = countText;
+
+    // Mobile results count
+    const mobileCountEl = document.getElementById('mobile-results-count');
+    if (mobileCountEl) {
+        mobileCountEl.textContent = totalCount.toLocaleString();
+    }
 }
 
 // Render pagination controls

@@ -164,30 +164,11 @@ main {
 
 .filters-header {
     display: none;
+    /* Hidden on desktop by default */
     width: 100%;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
 }
 
-.filters-header h2 {
-    font-size: 1.2rem;
-    margin: 0;
-}
-
-.filters-toggle {
-    display: none;
-    background: none;
-    border: 1px solid var(--border-color);
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-color);
-}
-
+/* Base styles for filter elements (Desktop) */
 .filters-container {
     display: flex;
     flex-wrap: wrap;
@@ -701,16 +682,54 @@ footer a:hover {
 
     /* Filters Mobile Styles */
     .filters-section {
-        padding: 1rem;
+        padding: 1rem 1.5rem;
+        /* Match header padding style */
+        gap: 0;
     }
 
     .filters-header {
         display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 0;
     }
 
-    .filters-toggle {
+    .mobile-results-info {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text-color);
+    }
+
+    .mobile-actions {
         display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .icon-btn {
+        background: none;
+        border: none;
+        padding: 0.5rem;
+        cursor: pointer;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+        /* Ensure good touch target */
+        width: 44px;
+        height: 44px;
+    }
+
+    .icon-btn:hover,
+    .icon-btn:active {
+        background-color: #f0f0f0;
+    }
+
+    .table-info {
+        display: none;
+        /* Hide desktop results count */
     }
 
     .filters-container {

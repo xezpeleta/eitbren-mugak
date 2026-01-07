@@ -19,13 +19,29 @@
     <main class="container">
         <section class="filters-section">
             <!-- Filters Header / Toggle for Mobile -->
+            <!-- Filters Header / Toggle for Mobile -->
             <div class="filters-header">
-                <h2>Filtroak</h2>
-                <button id="filters-toggle" class="filters-toggle" aria-expanded="false"
-                    aria-controls="filters-container">
-                    <span class="toggle-text">Erakutsi</span>
-                    <span class="toggle-icon">▼</span>
-                </button>
+                <div class="mobile-results-info">
+                    <span id="mobile-results-count">0</span> edukia
+                </div>
+                <div class="mobile-actions">
+                    <a href="stats.html" class="icon-btn" aria-label="Estatistikak">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </a>
+                    <button id="filters-toggle" class="icon-btn" aria-expanded="false" aria-controls="filters-container"
+                        aria-label="Filtroak ireki">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div id="filters-container" class="filters-container">
