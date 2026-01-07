@@ -1223,9 +1223,7 @@ function openMobileDetail(item) {
 
     // Geo
     if (item.is_geo_restricted === true) {
-        badgesContainer.innerHTML += `<span class="status-badge status-restricted">Murriztua</span>`;
-    } else if (item.is_geo_restricted === false) {
-        badgesContainer.innerHTML += `<span class="status-badge status-accessible">Murriztu gabea</span>`;
+        badgesContainer.innerHTML += `<span class="status-badge status-restricted">Geo-Murriztua</span>`;
     }
 
     // Link

@@ -875,10 +875,9 @@ footer a:hover {
 
     .thumbnail-img {
         width: 60px;
-        height: 60px;
-        /* Make it square-ish or keep ratio */
-        height: auto;
-        max-width: 60px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 4px;
     }
 
     td {
