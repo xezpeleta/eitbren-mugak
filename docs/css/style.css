@@ -22,6 +22,14 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
+    overflow-x: hidden;
+    /* Prevent horizontal scroll "zoomed" effect */
+    width: 100%;
+}
+
+html {
+    overflow-x: hidden;
+    width: 100%;
 }
 
 .container {
@@ -799,7 +807,8 @@ footer a:hover {
         }
 
         to {
-            transform: translateY(0);
+            transform: none;
+            /* Ensure no transform context remains */
         }
     }
 
@@ -1051,10 +1060,14 @@ footer a:hover {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    /* Use dvh to respect mobile address bars */
+    height: 100dvh;
     z-index: 2000;
     background-color: #000;
-    overflow-y: auto;
+    /* Layout: Flex column to manage header/content/footer */
+    flex-direction: column;
+    overflow: hidden;
+    /* Frame itself never scrolls */
 }
 
 .mobile-detail-modal.open {
@@ -1070,19 +1083,27 @@ footer a:hover {
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: none;
+        /* Clear transform to avoid stacking context issues */
     }
 }
 
 .mobile-detail-content {
     position: relative;
-    min-height: 100%;
     display: flex;
     flex-direction: column;
+    /* This area scrolls inside the fixed modal frame */
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    /* Standard padding, footer is now a sibling flex item */
+    padding-bottom: 2rem;
 }
 
 .mobile-detail-close {
     position: absolute;
+    /* Absolute within the fixed modal frame = pinned to screen */
     top: 1rem;
     right: 1rem;
     z-index: 2010;
@@ -1103,8 +1124,8 @@ footer a:hover {
 .mobile-detail-image-container {
     position: relative;
     width: 100%;
+    /* Fixed height relative to viewport height, not content */
     height: 45vh;
-    /* Reduced from 60vh for better visibility of content */
     flex-shrink: 0;
 }
 
@@ -1133,8 +1154,8 @@ footer a:hover {
     /* Match dark theme bg */
     flex-grow: 1;
     color: #e0e0e0;
-    /* Reduced bottom padding to avoid double spacing with the new fixed footer padding logic */
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+    padding-bottom: 2rem;
+    /* Standard padding, footer spacing handled by parent */
 }
 
 #mobile-detail-title {
@@ -1172,9 +1193,7 @@ footer a:hover {
 }
 
 #mobile-detail-actions {
-    position: fixed;
-    bottom: 0;
-    left: 0;
+    /* No longer absolute/fixed, standard flex item at bottom */
     width: 100%;
     padding: 1rem;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
@@ -1182,6 +1201,7 @@ footer a:hover {
     border-top: 1px solid #2a2a2a;
     z-index: 2020;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
 }
 
 .mobile-content-link {
@@ -1212,8 +1232,9 @@ body.modal-open {
 
 /* Mobile Navigation Buttons */
 .mobile-nav-btn {
-    position: fixed;
-    /* Use fixed to stay on screen even if modal contents scroll */
+    position: absolute;
+    /* Absolute within fixed modal */
+    /* Use absolute to stay on screen even if modal contents scroll */
     top: 50%;
     transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.5);
