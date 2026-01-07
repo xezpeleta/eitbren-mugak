@@ -6,6 +6,15 @@ let expandedSeries = new Set();
 // Track which individual item (by slug) has its detail row expanded.
 // We keep this as a Set for simplicity, but enforce a single active slug.
 let expandedRows = new Set();
+let currentDetailValues = {
+    index: -1,
+    items: []
+};
+
+// Touch handling variables
+let touchStartX = 0;
+let touchEndX = 0;
+
 
 // Attempt to infer season number from a title prefix like "D7: 1. Tartaldea"
 function inferSeasonFromTitle(title) {
@@ -1131,6 +1140,7 @@ function clearFilters() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', () => {
+    initMobileNavigation();
     loadContent();
 
     // Filter inputs
@@ -1176,10 +1186,147 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ------------------------------------------------------------------------
+// Mobile Navigation Logic
+// ------------------------------------------------------------------------
+
+// Get a flat list of all currently navigable items (respecting filters/sort)
+// Order: All Standalone -> All Series Episodes (flattened)
+function getNavigableItems() {
+    const items = [];
+
+    // 1. Add all standalone items
+    filteredGroupedContent.standalone.forEach(item => items.push(item));
+
+    // 2. Add all episodes from all filtered series
+    filteredGroupedContent.series.forEach(series => {
+        if (series.episodes) {
+            series.episodes.forEach(ep => items.push(ep));
+        }
+    });
+
+    return items;
+}
+
+// Find index of current item in the navigable list
+function findItemIndex(item, items) {
+    if (!item || !items) return -1;
+    // Match by slug (primary) or fall back to strict equality
+    return items.findIndex(i => i.slug === item.slug);
+}
+
+function updateNavButtons() {
+    const prevBtn = document.getElementById('mobile-nav-prev');
+    const nextBtn = document.getElementById('mobile-nav-next');
+
+    if (!prevBtn || !nextBtn) return;
+
+    const { index, items } = currentDetailValues;
+
+    if (index <= 0) {
+        prevBtn.disabled = true;
+    } else {
+        prevBtn.disabled = false;
+    }
+
+    if (index >= items.length - 1 || index === -1) {
+        nextBtn.disabled = true;
+    } else {
+        nextBtn.disabled = false;
+    }
+}
+
+function navigateItem(direction) {
+    const { index, items } = currentDetailValues;
+    if (index === -1 || !items.length) return;
+
+    let newIndex = index + direction;
+
+    // Bounds check
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= items.length) newIndex = items.length - 1;
+
+    if (newIndex !== index) {
+        const newItem = items[newIndex];
+        openMobileDetail(newItem);
+    }
+}
+
+// Initialize Navigation Listeners
+function initMobileNavigation() {
+    const prevBtn = document.getElementById('mobile-nav-prev');
+    const nextBtn = document.getElementById('mobile-nav-next');
+    const modal = document.getElementById('mobile-detail-modal');
+    const closeBtn = document.getElementById('mobile-detail-close');
+
+    if (prevBtn) {
+        // Clone to remove old listeners if any (simple way to ensure no duplicates)
+        const newPrev = prevBtn.cloneNode(true);
+        prevBtn.parentNode.replaceChild(newPrev, prevBtn);
+        newPrev.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateItem(-1);
+        });
+    }
+
+    if (nextBtn) {
+        const newNext = nextBtn.cloneNode(true);
+        nextBtn.parentNode.replaceChild(newNext, nextBtn);
+        newNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateItem(1);
+        });
+    }
+
+    if (closeBtn) {
+        // Ensure close button works (re-adding just in case)
+        closeBtn.addEventListener('click', closeMobileDetail);
+    }
+
+    // Swipe Gestures
+    if (modal) {
+        // Remove old listeners? Hard to do without reference. 
+        // We'll rely on this running once on DOMContentLoaded or check a flag.
+        if (!modal.hasAttribute('data-swipe-init')) {
+            modal.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            modal.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+            modal.setAttribute('data-swipe-init', 'true');
+        }
+    }
+}
+
+function handleSwipe() {
+    const threshold = 50; // min distance to be considered a swipe
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > threshold) {
+        if (diff > 0) {
+            // Swiped Left -> Show Next
+            navigateItem(1);
+        } else {
+            // Swiped Right -> Show Previous
+            navigateItem(-1);
+        }
+    }
+}
+
 // Mobile Detail Modal Functions
 function openMobileDetail(item) {
     const modal = document.getElementById('mobile-detail-modal');
     if (!modal) return;
+
+    // Update Navigation State
+    const items = getNavigableItems();
+    const index = findItemIndex(item, items);
+
+    currentDetailValues = { index, items };
+    updateNavButtons();
 
     // Populate Content
     const poster = document.getElementById('mobile-detail-poster');

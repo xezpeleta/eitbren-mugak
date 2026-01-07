@@ -1132,3 +1132,53 @@ footer a:hover {
 body.modal-open {
     overflow: hidden;
 }
+
+/* Mobile Navigation Buttons */
+.mobile-nav-btn {
+    position: fixed;
+    /* Use fixed to stay on screen even if modal contents scroll */
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 60px;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2002;
+    /* Above modal content */
+    border-radius: 4px;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.mobile-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.mobile-nav-btn:disabled,
+.mobile-nav-btn[disabled] {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+}
+
+.mobile-nav-prev {
+    left: 10px;
+}
+
+.mobile-nav-next {
+    right: 10px;
+}
+
+@media (max-width: 768px) {
+
+    /* Ensure modal handles the new buttons */
+    .mobile-detail-modal {
+        /* existing styles... */
+    }
+}
