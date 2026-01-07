@@ -37,6 +37,8 @@ def main():
                         help='Only update geo-restricted content (use with --disable-geo-check)')
     parser.add_argument('--new-only', '-n', action='store_true',
                         help='Only scrape content not present in the database')
+    parser.add_argument('--no-export', action='store_true',
+                        help='Skip JSON export after scraping')
     
     args = parser.parse_args()
     
@@ -110,12 +112,17 @@ def main():
                 scraper.scrape_all(limit=args.limit, check_channels=args.channels)
         
         # Export to JSON
-        print("\n" + "=" * 80)
-        print("Exporting to JSON...")
-        print("=" * 80)
-        exporter.export_all()
-        exporter.export_statistics_only()
-        exporter.export_geo_restricted_only()
+        if not args.no_export:
+            print("\n" + "=" * 80)
+            print("Exporting to JSON...")
+            print("=" * 80)
+            exporter.export_all()
+            exporter.export_statistics_only()
+            exporter.export_geo_restricted_only()
+        else:
+            print("\n" + "=" * 80)
+            print("Skipping JSON export (--no-export used)")
+            print("=" * 80)
         
         print("\n✓ Scraping complete!")
         
