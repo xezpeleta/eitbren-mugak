@@ -1051,6 +1051,12 @@ footer a:hover {
         background: var(--primary-color);
         color: white;
         font-weight: 600;
+        transition: all 0.1s ease-out;
+    }
+
+    /* Instant visual feedback on tap */
+    .filter-segmented-btn:active:not(.active) {
+        background: rgba(0, 215, 182, 0.2);
     }
 
     /* Platform-specific colors for segmented control */

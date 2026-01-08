@@ -285,19 +285,21 @@ function populateFilters() {
         });
     }
 
-    // Search clear button
+    // Search clear button with debouncing
     const searchInput = document.getElementById('search-input');
     const searchClearBtn = document.getElementById('search-clear');
     
     if (searchInput && searchClearBtn) {
         searchInput.addEventListener('input', () => {
             searchClearBtn.style.display = searchInput.value ? 'flex' : 'none';
+            // Debounce search input
+            applyFiltersDebounced();
         });
 
         searchClearBtn.addEventListener('click', () => {
             searchInput.value = '';
             searchClearBtn.style.display = 'none';
-            applyFilters();
+            applyFiltersDebounced();
         });
     }
 }
@@ -334,6 +336,30 @@ function getChipFilterValues(filterId) {
     }
 }
 
+// Debounce timer for filter application
+let filterDebounceTimer = null;
+
+// Apply filters with debouncing for better performance
+function applyFiltersDebounced(immediate = false) {
+    if (immediate) {
+        // Clear any pending debounced call
+        if (filterDebounceTimer) {
+            clearTimeout(filterDebounceTimer);
+            filterDebounceTimer = null;
+        }
+        applyFilters();
+    } else {
+        // Debounce the filter application
+        if (filterDebounceTimer) {
+            clearTimeout(filterDebounceTimer);
+        }
+        filterDebounceTimer = setTimeout(() => {
+            applyFilters();
+            filterDebounceTimer = null;
+        }, 150); // 150ms delay for smooth UX
+    }
+}
+
 // Initialize filter button event handlers
 function initializeFilterButtons() {
     // Handle segmented controls (single select)
@@ -343,13 +369,11 @@ function initializeFilterButtons() {
         
         group.querySelectorAll('.filter-segmented-btn').forEach(button => {
             button.addEventListener('click', () => {
-                // Deactivate all buttons in this group
+                // Instant visual feedback - update UI immediately
                 group.querySelectorAll('.filter-segmented-btn').forEach(btn => {
                     btn.classList.remove('active');
                     btn.setAttribute('aria-pressed', 'false');
                 });
-                
-                // Activate clicked button
                 button.classList.add('active');
                 button.setAttribute('aria-pressed', 'true');
                 
@@ -358,8 +382,8 @@ function initializeFilterButtons() {
                     selectElement.value = button.getAttribute('data-value');
                 }
                 
-                // Apply filters
-                applyFilters();
+                // Apply filters with debouncing
+                applyFiltersDebounced();
             });
         });
     });
@@ -372,13 +396,12 @@ function initializeFilterButtons() {
         
         group.querySelectorAll('.filter-chip').forEach(button => {
             button.addEventListener('click', () => {
+                // Instant visual feedback - update UI immediately
                 if (isMultiSelect) {
-                    // Toggle this chip
                     button.classList.toggle('active');
                     button.setAttribute('aria-pressed', 
                         button.classList.contains('active') ? 'true' : 'false');
                 } else {
-                    // Single select mode
                     group.querySelectorAll('.filter-chip').forEach(btn => {
                         btn.classList.remove('active');
                         btn.setAttribute('aria-pressed', 'false');
@@ -392,8 +415,8 @@ function initializeFilterButtons() {
                     selectElement.value = button.getAttribute('data-value');
                 }
                 
-                // Apply filters
-                applyFilters();
+                // Apply filters with debouncing
+                applyFiltersDebounced();
             });
         });
     });
@@ -1352,14 +1375,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileNavigation();
     loadContent();
 
-    // Filter inputs
-    document.getElementById('search-input').addEventListener('input', applyFilters);
-    document.getElementById('type-filter').addEventListener('change', applyFilters);
-    document.getElementById('restriction-filter').addEventListener('change', applyFilters);
-    document.getElementById('age-rating-filter').addEventListener('change', applyFilters);
-    document.getElementById('language-filter').addEventListener('change', applyFilters);
-    document.getElementById('platform-filter').addEventListener('change', applyFilters);
-    document.getElementById('media-type-filter').addEventListener('change', applyFilters);
+    // Filter inputs (desktop dropdowns) - use immediate application for selects
+    document.getElementById('type-filter').addEventListener('change', () => applyFiltersDebounced(true));
+    document.getElementById('restriction-filter').addEventListener('change', () => applyFiltersDebounced(true));
+    document.getElementById('age-rating-filter').addEventListener('change', () => applyFiltersDebounced(true));
+    document.getElementById('language-filter').addEventListener('change', () => applyFiltersDebounced(true));
+    document.getElementById('platform-filter').addEventListener('change', () => applyFiltersDebounced(true));
+    document.getElementById('media-type-filter').addEventListener('change', () => applyFiltersDebounced(true));
     document.getElementById('clear-filters').addEventListener('click', clearFilters);
 
     // Pagination controls
