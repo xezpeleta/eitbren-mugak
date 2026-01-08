@@ -263,21 +263,21 @@ function populateFilters() {
         filtersToggle.addEventListener('click', () => {
             // Mobile modal: just add 'open' class
             filtersContainer.classList.add('open');
-            document.body.classList.add('modal-open');
+            lockBodyScroll();
         });
     }
 
     if (filterModalClose && filtersContainer) {
         filterModalClose.addEventListener('click', () => {
             filtersContainer.classList.remove('open');
-            document.body.classList.remove('modal-open');
+            unlockBodyScroll();
         });
     }
 
     if (filterApplyBtn && filtersContainer) {
         filterApplyBtn.addEventListener('click', () => {
             filtersContainer.classList.remove('open');
-            document.body.classList.remove('modal-open');
+            unlockBodyScroll();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
