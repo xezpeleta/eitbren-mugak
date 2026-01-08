@@ -219,11 +219,21 @@ main {
 
 /* Base styles for filter elements (Desktop) */
 .filters-container {
-    display: flex;
+    display: flex !important;
     flex-wrap: wrap;
     gap: 1rem;
     align-items: end;
     width: 100%;
+    /* Reset mobile-specific properties for desktop */
+    position: static;
+    height: auto;
+    background-color: transparent;
+    z-index: auto;
+    flex-direction: row;
+    padding: 0;
+    margin: 0;
+    overflow-y: visible;
+    overflow-x: visible;
 }
 
 .filter-group {
@@ -709,8 +719,26 @@ footer a:hover {
 
 /* Default State for Mobile Filter Elements (Hidden on Desktop) */
 .filter-modal-header,
-.filter-modal-actions {
+.filter-modal-actions,
+.filter-modal-body {
     display: none;
+}
+
+/* On desktop, show filters directly without modal wrapper */
+@media (min-width: 769px) {
+    .filters-header {
+        display: none !important;
+    }
+    
+    .filter-modal-header,
+    .filter-modal-actions {
+        display: none !important;
+    }
+    
+    /* Show filter groups directly on desktop */
+    .filter-modal-body {
+        display: contents;
+    }
 }
 
 /* Responsive */
