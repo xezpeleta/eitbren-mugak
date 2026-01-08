@@ -1388,6 +1388,125 @@ body.modal-open {
     right: 10px;
 }
 
+/* Series Episode List Styles */
+.series-episode-list {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.episode-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 1rem;
+    background: #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.episode-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.episode-list-item:hover,
+.episode-list-item:active {
+    background: #252525;
+}
+
+.episode-list-item:last-child {
+    border-bottom: none;
+}
+
+.episode-thumbnail {
+    flex-shrink: 0;
+    width: 80px;
+    height: 45px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #2a2a2a;
+}
+
+.episode-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.episode-thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.episode-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.episode-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.episode-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-transform: uppercase;
+}
+
+.episode-geo-badge {
+    font-size: 0.7rem;
+}
+
+.episode-geo-badge.restricted {
+    color: var(--restricted-color);
+}
+
+.episode-geo-badge.accessible {
+    color: var(--accessible-color);
+}
+
+.episode-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #e0e0e0;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.episode-duration {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 0.15rem;
+}
+
+.episode-arrow {
+    font-size: 1.5rem;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.no-episodes {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+    font-style: italic;
+}
+
 @media (max-width: 768px) {
 
     /* Ensure modal handles the new buttons */

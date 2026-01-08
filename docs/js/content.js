@@ -675,6 +675,27 @@ function renderTable() {
         });
     });
 
+    // Add click handlers for series rows (mobile only)
+    document.querySelectorAll('.series-row').forEach(rowEl => {
+        rowEl.addEventListener('click', (e) => {
+            // Don't trigger if clicking the expand button
+            if (e.target.closest('.expand-toggle')) return;
+            
+            if (window.innerWidth <= 768) {
+                // Mobile: Find series data and open series modal
+                const expandBtn = rowEl.querySelector('.expand-toggle');
+                const seriesSlug = expandBtn ? expandBtn.getAttribute('data-series-slug') : null;
+                
+                if (seriesSlug) {
+                    const seriesData = pageRows.find(r => r.type === 'series' && r.series.series_slug === seriesSlug);
+                    if (seriesData) {
+                        openSeriesModal(seriesData.series);
+                    }
+                }
+            }
+        });
+    });
+
     // Attach click handlers to data rows to toggle detail expansion
     document.querySelectorAll('tr[data-slug]').forEach(rowEl => {
         rowEl.addEventListener('click', () => {
@@ -1404,11 +1425,27 @@ function openMobileDetail(item) {
     if (!modal) return;
 
     // Update Navigation State
-    const items = getNavigableItems();
-    const index = findItemIndex(item, items);
+    // Check if we're coming from a series modal
+    const isFromSeries = currentDetailValues?.isSeries;
+    const seriesEpisodes = isFromSeries ? currentDetailValues.items : null;
+    
+    let items, index;
+    if (seriesEpisodes) {
+        // Navigate within series episodes only
+        items = seriesEpisodes;
+        index = findItemIndex(item, items);
+    } else {
+        // Navigate through all items
+        items = getNavigableItems();
+        index = findItemIndex(item, items);
+    }
 
-    currentDetailValues = { index, items };
+    currentDetailValues = { index, items, isSeries: false };
     updateNavButtons();
+
+    // Remove series-specific class if present
+    const descriptionEl = document.getElementById('mobile-detail-description');
+    descriptionEl.classList.remove('series-episode-list');
 
     // Populate Content
     const poster = document.getElementById('mobile-detail-poster');
@@ -1420,7 +1457,7 @@ function openMobileDetail(item) {
             (item.series_title != null && item.series_title !== '') ? item.series_title :
                 (item.slug || 'Izenbururik gabe');
 
-    document.getElementById('mobile-detail-description').textContent = item.description || 'Ez dago deskribapenik eskuragarri.';
+    descriptionEl.textContent = item.description || 'Ez dago deskribapenik eskuragarri.';
 
     // Meta (Year, Duration, Age)
     const metaContainer = document.getElementById('mobile-detail-meta');
@@ -1474,10 +1511,148 @@ function openMobileDetail(item) {
     showNavButtons();
 }
 
+// Open series modal showing episode list
+function openSeriesModal(series) {
+    const modal = document.getElementById('mobile-detail-modal');
+    if (!modal) return;
+
+    // Store series context for navigation
+    currentDetailValues = { 
+        index: -1, 
+        items: series.episodes,
+        isSeries: true,
+        seriesData: series
+    };
+    
+    // Get poster from first episode
+    const poster = document.getElementById('mobile-detail-poster');
+    const firstEpisode = series.episodes[0];
+    poster.src = firstEpisode?.thumbnail || '';
+    poster.style.display = firstEpisode?.thumbnail ? 'block' : 'none';
+
+    // Set series title
+    document.getElementById('mobile-detail-title').textContent = series.series_title;
+
+    // Set meta info (episode count, platform)
+    const metaContainer = document.getElementById('mobile-detail-meta');
+    metaContainer.innerHTML = `<span>${series.episode_count} atal</span>`;
+
+    // Platform badges
+    const badgesContainer = document.getElementById('mobile-detail-badges');
+    let platforms = [];
+    if (firstEpisode?.platform) {
+        platforms = Array.isArray(firstEpisode.platform) ? firstEpisode.platform : [firstEpisode.platform];
+    }
+    badgesContainer.innerHTML = renderPlatformBadges(platforms);
+
+    // Build episode list instead of description
+    const descriptionEl = document.getElementById('mobile-detail-description');
+    descriptionEl.innerHTML = renderEpisodeList(series.episodes);
+    descriptionEl.classList.add('series-episode-list');
+
+    // Attach click handlers to episode list items (using event delegation)
+    descriptionEl.addEventListener('click', (e) => {
+        const episodeItem = e.target.closest('.episode-list-item');
+        if (episodeItem) {
+            const episodeIndex = parseInt(episodeItem.getAttribute('data-episode-index'));
+            const episode = series.episodes[episodeIndex];
+            if (episode) {
+                // Transition to episode detail modal
+                openMobileDetail(episode);
+            }
+        }
+    }, { once: false }); // Don't use once, we might reopen
+
+    // Hide the platform link button for series
+    const linkBtn = document.getElementById('mobile-detail-link');
+    linkBtn.style.display = 'none';
+
+    // Hide navigation arrows for series view
+    hideNavButtons();
+
+    // Show modal
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    lockBodyScroll();
+}
+
+// Render episode list for series modal
+function renderEpisodeList(episodes) {
+    if (!episodes || episodes.length === 0) {
+        return '<p class="no-episodes">Ez dago atalik eskuragarri.</p>';
+    }
+
+    let html = '<div class="episode-list-container">';
+    
+    episodes.forEach((episode, index) => {
+        // Season/Episode info
+        let episodeLabel = '';
+        if (episode.season_display || episode.season_number) {
+            episodeLabel += `D${episode.season_display || episode.season_number}`;
+        }
+        if (episode.episode_number) {
+            episodeLabel += `:${episode.episode_number}`;
+        }
+        
+        // Duration
+        const duration = episode.duration ? formatDuration(episode.duration) : '';
+        
+        // Thumbnail
+        const thumbnail = episode.thumbnail || '';
+        
+        // Title
+        const title = episode.title || episode.slug || 'Izen gabea';
+        
+        // Geo restriction badge
+        let restrictionBadge = '';
+        if (episode.is_geo_restricted === true) {
+            restrictionBadge = '<span class="episode-geo-badge restricted">🔒</span>';
+        } else if (episode.is_geo_restricted === false) {
+            restrictionBadge = '<span class="episode-geo-badge accessible">✓</span>';
+        }
+        
+        html += `
+            <div class="episode-list-item" data-episode-index="${index}">
+                <div class="episode-thumbnail">
+                    ${thumbnail ? `<img src="${escapeHtml(thumbnail)}" alt="${escapeHtml(title)}" loading="lazy">` : '<div class="episode-thumbnail-placeholder"></div>'}
+                </div>
+                <div class="episode-info">
+                    <div class="episode-header">
+                        ${episodeLabel ? `<span class="episode-label">${escapeHtml(episodeLabel)}</span>` : ''}
+                        ${restrictionBadge}
+                    </div>
+                    <div class="episode-title">${escapeHtml(title)}</div>
+                    ${duration ? `<div class="episode-duration">${duration}</div>` : ''}
+                </div>
+                <div class="episode-arrow">›</div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
 function closeMobileDetail() {
     const modal = document.getElementById('mobile-detail-modal');
     if (!modal) return;
 
+    // Check if we should return to series modal
+    const wasInSeriesContext = currentDetailValues?.items && 
+                               currentDetailValues.items.length > 0 &&
+                               currentDetailValues.items[0]?.series_slug;
+    
+    if (wasInSeriesContext) {
+        // Find parent series and reopen series modal
+        const seriesSlug = currentDetailValues.items[0].series_slug;
+        const series = filteredGroupedContent.series.find(s => s.series_slug === seriesSlug);
+        if (series) {
+            openSeriesModal(series);
+            return;
+        }
+    }
+
+    // Default close behavior
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
     unlockBodyScroll();
