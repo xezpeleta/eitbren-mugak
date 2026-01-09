@@ -1061,6 +1061,7 @@ footer a:hover {
         overflow: hidden;
         background: white;
         width: 100%;
+        padding: 0;
     }
 
     .filter-segmented-btn {
@@ -1084,6 +1085,7 @@ footer a:hover {
         overflow: hidden;
         text-overflow: ellipsis;
         -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
     }
 
     .filter-segmented-btn:last-child {
@@ -1105,6 +1107,11 @@ footer a:hover {
         color: white !important;
         font-weight: 600;
         transition: none !important;
+        margin: -2px 0;
+        padding-top: calc(0.75rem + 2px);
+        padding-bottom: calc(0.75rem + 2px);
+        border-top: 2px solid transparent;
+        border-bottom: 2px solid transparent;
     }
 
     /* Instant visual feedback on tap */
@@ -1116,16 +1123,31 @@ footer a:hover {
     .filter-segmented-platforms .filter-segmented-btn[data-platform="primeran"].active {
         background: #1a1a1a !important;
         color: #ffffff !important;
+        margin: -2px 0;
+        padding-top: calc(0.75rem + 2px);
+        padding-bottom: calc(0.75rem + 2px);
+        border-top: 2px solid transparent;
+        border-bottom: 2px solid transparent;
     }
 
     .filter-segmented-platforms .filter-segmented-btn[data-platform="makusi"].active {
         background: #00E676 !important;
         color: #000000 !important;
+        margin: -2px 0;
+        padding-top: calc(0.75rem + 2px);
+        padding-bottom: calc(0.75rem + 2px);
+        border-top: 2px solid transparent;
+        border-bottom: 2px solid transparent;
     }
 
     .filter-segmented-platforms .filter-segmented-btn[data-platform="etbon"].active {
         background: #FF5722 !important;
         color: #ffffff !important;
+        margin: -2px 0;
+        padding-top: calc(0.75rem + 2px);
+        padding-bottom: calc(0.75rem + 2px);
+        border-top: 2px solid transparent;
+        border-bottom: 2px solid transparent;
     }
 
     /* Filter Chips (for multi-select) */
