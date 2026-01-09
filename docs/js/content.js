@@ -110,8 +110,7 @@ async function loadContent() {
         populateFilters();
         
         // Apply default sort by publication_date (most recent first)
-        // Note: ISO date strings compare correctly in reverse alphabetical order
-        sortContent('publication_date', 'asc', true);
+        sortContent('publication_date', 'desc', true);
         
         renderTable();
         updateResultsCount();
@@ -722,11 +721,10 @@ function compareValues(aVal, bVal, direction) {
     aVal = String(aVal).toLowerCase();
     bVal = String(bVal).toLowerCase();
 
-    if (direction === 'asc') {
-        return aVal.localeCompare(bVal);
-    } else {
-        return bVal.localeCompare(aVal);
-    }
+    const comparison = aVal.localeCompare(bVal);
+    
+    // For descending, reverse the comparison result
+    return direction === 'asc' ? comparison : -comparison;
 }
 
 // Update sort indicators
