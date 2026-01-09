@@ -110,7 +110,8 @@ async function loadContent() {
         populateFilters();
         
         // Apply default sort by publication_date (most recent first)
-        sortContent('publication_date', 'desc', true);
+        // Note: ISO date strings compare correctly in reverse alphabetical order
+        sortContent('publication_date', 'asc', true);
         
         renderTable();
         updateResultsCount();
