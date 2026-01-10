@@ -11,6 +11,12 @@ let scrollPosition = 0;
 let touchStartX = 0;
 let touchEndX = 0;
 
+// Featured carousel state
+let featuredItems = [];
+let currentFeaturedIndex = 0;
+let featuredCarouselInterval = null;
+const CAROUSEL_INTERVAL = 5000; // 5 seconds
+
 // Load content from JSON
 async function loadContent() {
     try {
@@ -240,7 +246,7 @@ function renderHeroBanner(item) {
     const heroMeta = document.getElementById('hero-meta');
     const heroBtn = document.getElementById('hero-view-btn');
     
-    // Set background
+    // Set background with fade transition
     heroBanner.style.backgroundImage = `url('${item.thumbnail}')`;
     heroBanner.style.display = 'block';
     
@@ -261,6 +267,81 @@ function renderHeroBanner(item) {
         currentItemIndex = 0;
         openDetailModal(item);
     };
+}
+
+function initFeaturedCarousel(items) {
+    if (!items || items.length === 0) return;
+    
+    featuredItems = items;
+    currentFeaturedIndex = 0;
+    
+    // Create carousel indicators
+    const heroBanner = document.getElementById('hero-banner');
+    let indicatorsContainer = document.getElementById('carousel-indicators');
+    
+    if (!indicatorsContainer) {
+        indicatorsContainer = document.createElement('div');
+        indicatorsContainer.id = 'carousel-indicators';
+        indicatorsContainer.className = 'carousel-indicators';
+        heroBanner.appendChild(indicatorsContainer);
+    }
+    
+    indicatorsContainer.innerHTML = '';
+    items.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.className = 'carousel-dot';
+        dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
+        if (index === 0) dot.classList.add('active');
+        dot.onclick = () => goToFeaturedSlide(index);
+        indicatorsContainer.appendChild(dot);
+    });
+    
+    // Render first item
+    renderHeroBanner(items[0]);
+    
+    // Start auto-rotation
+    startFeaturedCarousel();
+}
+
+function goToFeaturedSlide(index) {
+    if (index < 0 || index >= featuredItems.length) return;
+    
+    currentFeaturedIndex = index;
+    renderHeroBanner(featuredItems[index]);
+    updateCarouselIndicators();
+    
+    // Reset auto-rotation timer
+    stopFeaturedCarousel();
+    startFeaturedCarousel();
+}
+
+function nextFeaturedSlide() {
+    currentFeaturedIndex = (currentFeaturedIndex + 1) % featuredItems.length;
+    renderHeroBanner(featuredItems[currentFeaturedIndex]);
+    updateCarouselIndicators();
+}
+
+function updateCarouselIndicators() {
+    const dots = document.querySelectorAll('.carousel-dot');
+    dots.forEach((dot, index) => {
+        if (index === currentFeaturedIndex) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+}
+
+function startFeaturedCarousel() {
+    stopFeaturedCarousel(); // Clear any existing interval
+    featuredCarouselInterval = setInterval(nextFeaturedSlide, CAROUSEL_INTERVAL);
+}
+
+function stopFeaturedCarousel() {
+    if (featuredCarouselInterval) {
+        clearInterval(featuredCarouselInterval);
+        featuredCarouselInterval = null;
+    }
 }
 
 // Modal functions
@@ -648,7 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { id: 'kids', title: 'Haurrak', items: getChildrenContent(allContent) }
     ];
     
-    // Render hero banner with first recent film (VOD only, no episodes)
+    // Render hero banner with 10 most recent films (VOD only, no episodes)
     const recentFilms = allContent
         .filter(item => {
             const isVod = item.type === 'vod' || item.type === 'movie';
@@ -658,10 +739,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return isVod && notEpisode && hasImage && hasDate;
         })
         .sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date))
-        .slice(0, 1);
+        .slice(0, 10);
     
     if (recentFilms.length > 0) {
-        renderHeroBanner(recentFilms[0]);
+        initFeaturedCarousel(recentFilms);
     }
     
     // Render categories

@@ -141,6 +141,7 @@ main {
     align-items: flex-end;
     padding: 0 3% 3rem;
     margin-bottom: 2rem;
+    transition: background-image 0.5s ease-in-out;
 }
 
 .hero-gradient {
@@ -169,6 +170,7 @@ main {
     font-weight: 700;
     margin-bottom: 1rem;
     text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+    transition: opacity 0.3s ease-in-out;
 }
 
 .hero-description {
@@ -176,6 +178,7 @@ main {
     line-height: 1.5;
     margin-bottom: 1rem;
     text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+    transition: opacity 0.3s ease-in-out;
 }
 
 .hero-meta {
@@ -184,6 +187,7 @@ main {
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
     align-items: center;
+    transition: opacity 0.3s ease-in-out;
 }
 
 .hero-meta span {
@@ -933,5 +937,69 @@ body.modal-open {
     
     .thumbnail-card img {
         height: 165px;
+    }
+}
+
+/* Carousel Indicators */
+.carousel-indicators {
+    position: absolute;
+    bottom: 1rem;
+    right: 3%;
+    z-index: 20;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.carousel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.carousel-dot:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: scale(1.2);
+}
+
+.carousel-dot.active {
+    background: var(--primary-color);
+    width: 32px;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .carousel-indicators {
+        bottom: 0.75rem;
+        right: 4%;
+    }
+    
+    .carousel-dot {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .carousel-dot.active {
+        width: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .carousel-indicators {
+        bottom: 0.5rem;
+    }
+    
+    .carousel-dot {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .carousel-dot.active {
+        width: 20px;
     }
 }
