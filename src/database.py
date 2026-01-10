@@ -584,6 +584,41 @@ class ContentDatabase:
         
         return [dict(row) for row in rows]
     
+    def get_content_without_metadata(self, platform: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get content without metadata (NULL, empty JSON object, or minimal metadata)
+        
+        Args:
+            platform: Filter by platform (e.g., 'primeran.eus', 'makusi.eus')
+            
+        Returns:
+            List of content dictionaries without proper metadata
+        """
+        cursor = self.conn.cursor()
+        
+        query = """
+            SELECT * FROM content 
+            WHERE (
+                metadata IS NULL 
+                OR metadata = '' 
+                OR metadata = '{}' 
+                OR json_extract(metadata, '$.title') IS NULL
+            )
+        """
+        params = []
+        
+        if platform:
+            # Filter by platform in JSON array
+            query += " AND EXISTS (SELECT 1 FROM json_each(platform) WHERE value = ?)"
+            params.append(platform)
+        
+        query += " ORDER BY title"
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        return [dict(row) for row in rows]
+    
     def yield_all_content(self, 
                        content_type: Optional[str] = None,
                        geo_restricted_only: bool = False,

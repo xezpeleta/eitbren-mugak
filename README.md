@@ -51,6 +51,12 @@ EITBren streaming plataforma ezberdinak bateratzend dituen webgunea da EITBHub.
    # Check specific content
    uv run python run_scraper.py --platform primeran --media-slug la-infiltrada
    uv run python run_scraper.py --platform primeran --series-slug lau-hankan
+   
+   # Update metadata for geo-restricted content (use with VPN)
+   uv run python run_scraper.py --platform primeran --geo-restricted-only --disable-geo-check
+   
+   # Update metadata for content without metadata (use with VPN)
+   uv run python run_scraper.py --platform primeran --update-missing-metadata --disable-geo-check
    ```
 
 4. **Regenerate EITBHub JSON data** (from existing database):

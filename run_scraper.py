@@ -3,7 +3,14 @@
 Main entry point for EITB platform content scraper
 
 Usage:
+    # Full scrape
     python run_scraper.py [--platform PLATFORM] [--test] [--media-slug SLUG] [--series-slug SLUG]
+    
+    # Update geo-restricted content (use with VPN)
+    python run_scraper.py --geo-restricted-only --disable-geo-check
+    
+    # Update content without metadata (use with VPN)
+    python run_scraper.py --update-missing-metadata --disable-geo-check
 """
 
 import argparse
@@ -39,6 +46,8 @@ def main():
                         help='Only scrape content not present in the database')
     parser.add_argument('--no-export', action='store_true',
                         help='Skip JSON export after scraping')
+    parser.add_argument('--update-missing-metadata', action='store_true',
+                        help='Only update content without metadata (use with --disable-geo-check and VPN)')
     
     args = parser.parse_args()
     
@@ -69,6 +78,8 @@ def main():
             print("⚠️  Geo-restriction checking is DISABLED")
             if args.geo_restricted_only:
                 print("   Mode: Update ONLY geo-restricted content")
+            elif args.update_missing_metadata:
+                print("   Mode: Update ONLY content without metadata")
             else:
                 print("   Mode: Update ALL content")
             print("   This mode will update metadata but preserve existing geo-restriction status")
@@ -97,7 +108,7 @@ def main():
             print(f"\nChecking series: {args.series_slug}")
             scraper.check_series(args.series_slug)
         else:
-            # Full scrape or geo-restricted only
+            # Full scrape or geo-restricted only or missing metadata only
             if args.geo_restricted_only:
                 print("\n[GEO-RESTRICTED ONLY MODE] Updating geo-restricted content...")
                 # Get geo-restricted content from database
@@ -105,6 +116,14 @@ def main():
                 media_slugs = [item['slug'] for item in geo_restricted if item['type'] not in ['series', 'live']]
                 series_slugs = [item['slug'] for item in geo_restricted if item['type'] == 'series']
                 print(f"Found {len(media_slugs)} geo-restricted media and {len(series_slugs)} geo-restricted series")
+                scraper.scrape_all(media_slugs=media_slugs, series_slugs=series_slugs, check_channels=args.channels)
+            elif args.update_missing_metadata:
+                print("\n[MISSING METADATA MODE] Updating content without metadata...")
+                # Get content without metadata from database
+                missing_metadata = db.get_content_without_metadata(platform=api.platform)
+                media_slugs = [item['slug'] for item in missing_metadata if item['type'] not in ['series', 'live']]
+                series_slugs = [item['slug'] for item in missing_metadata if item['type'] == 'series']
+                print(f"Found {len(media_slugs)} media and {len(series_slugs)} series without metadata")
                 scraper.scrape_all(media_slugs=media_slugs, series_slugs=series_slugs, check_channels=args.channels)
             else:
                 print("\n[FULL MODE] Starting full content scrape...")
