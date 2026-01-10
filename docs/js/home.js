@@ -537,10 +537,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         { id: 'kids', title: 'Haurrak', items: getChildrenContent(allContent) }
     ];
     
-    // Render hero banner with first recent item
-    const recentItems = getRecentlyAdded(allContent, 1);
-    if (recentItems.length > 0) {
-        renderHeroBanner(recentItems[0]);
+    // Render hero banner with first recent film (VOD only, no episodes)
+    const recentFilms = allContent
+        .filter(item => {
+            const isVod = item.type === 'vod' || item.type === 'movie';
+            const notEpisode = !item.series_slug;
+            const hasImage = item.thumbnail;
+            const hasDate = item.publication_date;
+            return isVod && notEpisode && hasImage && hasDate;
+        })
+        .sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date))
+        .slice(0, 1);
+    
+    if (recentFilms.length > 0) {
+        renderHeroBanner(recentFilms[0]);
     }
     
     // Render categories
