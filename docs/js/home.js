@@ -278,8 +278,57 @@ function openDetailModal(item) {
     document.getElementById('mobile-detail-title').textContent = 
         item.title || item.series_title || item.slug || 'Izenbururik gabe';
     
-    document.getElementById('mobile-detail-description').textContent = 
-        item.description || 'Ez dago deskribapenik eskuragarri.';
+    // Series info for episodes (add before description)
+    const descriptionEl = document.getElementById('mobile-detail-description');
+    let seriesInfoHtml = '';
+    
+    if (item.series_slug && item.series_title) {
+        // This is an episode - add series info
+        seriesInfoHtml = '<div class="episode-series-info">';
+        seriesInfoHtml += `<div class="series-info-text">`;
+        seriesInfoHtml += `<strong>${escapeHtml(item.series_title)}</strong>`;
+        if (item.season_number) {
+            seriesInfoHtml += ` • ${item.season_number}. denboraldia`;
+        }
+        if (item.episode_number) {
+            seriesInfoHtml += ` • ${item.episode_number}. atala`;
+        }
+        seriesInfoHtml += `</div>`;
+        seriesInfoHtml += `<button class="view-series-btn" data-series-slug="${escapeHtml(item.series_slug)}">Atal guztiak ikusi ›</button>`;
+        seriesInfoHtml += '</div>';
+    }
+    
+    descriptionEl.innerHTML = seriesInfoHtml + 
+        '<p class="episode-description-text">' + 
+        escapeHtml(item.description || 'Ez dago deskribapenik eskuragarri.') + 
+        '</p>';
+    
+    // Add click handler for "view all episodes" button
+    if (item.series_slug) {
+        setTimeout(() => {
+            const viewSeriesBtn = descriptionEl.querySelector('.view-series-btn');
+            if (viewSeriesBtn) {
+                viewSeriesBtn.addEventListener('click', () => {
+                    // Find all episodes from this series
+                    const seriesEpisodes = allContent.filter(content => 
+                        content.series_slug === item.series_slug && content.type === 'episode'
+                    );
+                    
+                    if (seriesEpisodes.length > 0) {
+                        // Create series object
+                        const seriesObj = {
+                            series_slug: item.series_slug,
+                            series_title: item.series_title,
+                            episodes: seriesEpisodes,
+                            thumbnail: item.thumbnail || seriesEpisodes[0]?.thumbnail
+                        };
+                        
+                        openSeriesModal(seriesObj);
+                    }
+                });
+            }
+        }, 0);
+    }
     
     // Meta
     const metaContainer = document.getElementById('mobile-detail-meta');

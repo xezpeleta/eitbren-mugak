@@ -567,6 +567,55 @@ main {
     overflow-wrap: break-word;
 }
 
+/* Episode Series Info */
+.episode-series-info {
+    background: rgba(0, 215, 182, 0.1);
+    border-left: 3px solid var(--primary-color);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.series-info-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #e0e0e0;
+}
+
+.series-info-text strong {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.view-series-btn {
+    align-self: flex-start;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.view-series-btn:hover,
+.view-series-btn:active {
+    background: var(--primary-hover);
+    transform: translateX(2px);
+}
+
+.episode-description-text {
+    margin: 0;
+}
+
 #mobile-detail-actions {
     width: 100%;
     padding: 1rem 1.25rem;
