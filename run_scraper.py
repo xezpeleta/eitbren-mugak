@@ -51,6 +51,10 @@ def main():
     
     args = parser.parse_args()
     
+    # Validate mutually exclusive options
+    if args.geo_restricted_only and args.update_missing_metadata:
+        parser.error("--geo-restricted-only and --update-missing-metadata cannot be used together. Choose one.")
+    
     try:
         # Initialize API client based on platform
         print(f"Initializing {args.platform} API client...")

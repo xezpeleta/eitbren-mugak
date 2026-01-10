@@ -586,7 +586,7 @@ class ContentDatabase:
     
     def get_content_without_metadata(self, platform: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Get content without metadata (NULL, empty JSON object, or minimal metadata)
+        Get content without metadata (empty metadata column OR empty title column)
         
         Args:
             platform: Filter by platform (e.g., 'primeran.eus', 'makusi.eus')
@@ -602,7 +602,8 @@ class ContentDatabase:
                 metadata IS NULL 
                 OR metadata = '' 
                 OR metadata = '{}' 
-                OR json_extract(metadata, '$.title') IS NULL
+                OR title IS NULL
+                OR title = ''
             )
         """
         params = []
