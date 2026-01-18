@@ -309,8 +309,27 @@ class ContentScraper:
             # Handle different response codes BEFORE raise_for_status()
             if response.status_code == 404:
                 # Item doesn't exist (might be a collection/page, not actual media)
-                print(f"    ⚠️  Skipping {slug}: Not found (likely not a media item)")
-                return None
+                print(f"    ⚠️  {slug}: Not found (likely not a media item)")
+                
+                # Save to database so we don't check it again
+                metadata = {'error': 'Not found', 'status_code': 404}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, 'unknown')
+                
+                content_data = {
+                    'slug': slug,
+                    'platform': self.platform,
+                    'title': slug.replace('-', ' ').title(),
+                    'type': 'unknown',
+                    'is_geo_restricted': None,
+                    'restriction_type': 'not_found',
+                    'metadata': metadata
+                }
+                
+                # Save to database
+                self.db.upsert_content(content_data)
+                self.stats['total_checked'] += 1
+                
+                return content_data
             
             if response.status_code == 403:
                 # Geo-restricted at API level
@@ -596,8 +615,23 @@ class ContentScraper:
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                print(f"    ⚠️  Skipping {slug}: Not found")
-                return None
+                print(f"    ⚠️  {slug}: Not found")
+                # Save to database so we don't check it again
+                metadata = {'error': 'Not found', 'status_code': 404}
+                metadata = self._add_platform_url_to_metadata(metadata, slug, 'unknown')
+                
+                content_data = {
+                    'slug': slug,
+                    'platform': self.platform,
+                    'title': slug.replace('-', ' ').title(),
+                    'type': 'unknown',
+                    'is_geo_restricted': None,
+                    'restriction_type': 'not_found',
+                    'metadata': metadata
+                }
+                self.db.upsert_content(content_data)
+                self.stats['total_checked'] += 1
+                return content_data
             elif e.response.status_code == 403:
                 # Already handled above, but just in case
                 print(f"    🚫 {slug}: Geo-restricted (403)")
@@ -661,11 +695,11 @@ class ContentScraper:
             for episode in episodes:
                 episode_slug = episode['episode_slug']
 
-                # If new_only is enabled, check if episode exists in database (and has geo-restriction info)
+                # If new_only is enabled, check if episode exists in database
                 if self.new_only:
                     status = self.db.get_content_status(episode_slug, self.platform)
-                    if status and status.get('is_geo_restricted') is not None:
-                        # Episode exists and has been checked - skip detailed processing
+                    if status:  # Skip if episode exists, regardless of geo-restriction status
+                        # Episode exists - skip detailed processing
                         # But add to episode_data_list so we can calculate series stats
                         try:
                             # We need minimal data for the list
