@@ -18,7 +18,7 @@ let featuredCarouselInterval = null;
 const CAROUSEL_INTERVAL = 5000; // 5 seconds
 
 // Language filter state
-let basqueOnlyFilter = false;
+let basqueOnlyFilter = true;
 
 // Load content from JSON
 async function loadContent() {
