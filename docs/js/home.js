@@ -432,6 +432,13 @@ function openDetailModal(item) {
         }).join(' ');
     }
     
+    // Language badges
+    if (item.languages && Array.isArray(item.languages) && item.languages.length > 0) {
+        badgesHtml += item.languages.map(lang => 
+            `<span class="language-badge">${escapeHtml(lang.toUpperCase())}</span>`
+        ).join(' ');
+    }
+    
     // Geo restriction
     if (item.is_geo_restricted === true) {
         badgesHtml += '<span class="status-badge status-restricted">Geo-Murriztua</span>';
@@ -500,6 +507,13 @@ function openSeriesModal(series) {
             const platformName = p.replace('.eus', '').toLowerCase();
             return `<span class="platform-badge platform-badge-${platformName}">${platformName.charAt(0).toUpperCase() + platformName.slice(1)}</span>`;
         }).join(' ');
+    }
+    
+    // Language badges (from first episode)
+    if (firstEpisode && firstEpisode.languages && Array.isArray(firstEpisode.languages) && firstEpisode.languages.length > 0) {
+        badgesHtml += firstEpisode.languages.map(lang => 
+            `<span class="language-badge">${escapeHtml(lang.toUpperCase())}</span>`
+        ).join(' ');
     }
     
     // Check if any episode has expiration date within next 12 months
