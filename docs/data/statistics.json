@@ -1,18 +1,18 @@
 {
-  "export_date": "2026-01-12T21:23:41.400648",
+  "export_date": "2026-01-18T10:16:41.320815",
   "statistics": {
-    "total_content": 18426,
+    "total_content": 18811,
     "by_type": {
-      "episode": 17541,
-      "live": 5,
-      "series": 377,
-      "unknown": 3,
-      "vod": 500
+      "episode": 17911,
+      "live": 9,
+      "series": 380,
+      "unknown": 78,
+      "vod": 433
     },
     "by_platform": {
-      "etbon.eus": 7031,
-      "makusi.eus": 6201,
-      "primeran.eus": 6461
+      "etbon.eus": 7348,
+      "makusi.eus": 6255,
+      "primeran.eus": 6482
     },
     "by_year": {
       "201": 1,
@@ -61,61 +61,61 @@
       "2011": 206,
       "2012": 228,
       "2013": 232,
-      "2014": 227,
-      "2015": 241,
+      "2014": 232,
+      "2015": 262,
       "2016": 157,
-      "2017": 354,
-      "2018": 648,
-      "2019": 329,
-      "2020": 407,
-      "2021": 494,
-      "2022": 752,
-      "2023": 1130,
-      "2024": 2442,
-      "2025": 2049,
-      "2026": 14
+      "2017": 382,
+      "2018": 685,
+      "2019": 359,
+      "2020": 442,
+      "2021": 528,
+      "2022": 762,
+      "2023": 1141,
+      "2024": 2458,
+      "2025": 2152,
+      "2026": 25
     },
     "by_age_rating": {
-      "D": 10441,
-      "0-4": 2456,
-      "5-7": 1819,
-      "+12": 1089,
-      "+8": 843,
-      "+7": 768,
-      "TP": 468,
-      "+16": 275,
-      "Unknown": 181,
-      "+18": 84,
+      "D": 10537,
+      "Unknown": 4347,
+      "0-4": 1220,
+      "+8": 791,
+      "5-7": 516,
+      "TP": 472,
+      "+12": 459,
+      "+7": 325,
+      "+16": 86,
+      "+18": 56,
       "Kalifikatu gabe": 1,
       "H": 1
     },
     "by_language": {
-      "eu": 13752,
-      "es": 4281,
+      "eu": 14128,
+      "es": 4311,
       "vo": 845,
       "en": 83,
-      "au": 65,
+      "au": 67,
       "un": 21,
       "fr": 19
     },
     "geo_restricted_by_platform": {
       "etbon.eus": {
-        "restricted": 226,
-        "accessible": 6691
+        "restricted": 290,
+        "accessible": 6942
       },
       "makusi.eus": {
-        "restricted": 4443,
-        "accessible": 1613
+        "restricted": 4484,
+        "accessible": 1625
       },
       "primeran.eus": {
-        "restricted": 1509,
-        "accessible": 4797
+        "restricted": 1518,
+        "accessible": 4810
       }
     },
-    "geo_restricted_count": 5313,
-    "accessible_count": 12735,
-    "unknown_count": 378,
-    "geo_restricted_percentage": 28.83425594268968,
-    "last_check": "2026-01-12T21:10:40.221102"
+    "geo_restricted_count": 5419,
+    "accessible_count": 13011,
+    "unknown_count": 381,
+    "geo_restricted_percentage": 28.807612567114987,
+    "last_check": "2026-01-18T10:04:52.558874"
   }
 }
