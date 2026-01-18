@@ -17,6 +17,9 @@ let currentFeaturedIndex = 0;
 let featuredCarouselInterval = null;
 const CAROUSEL_INTERVAL = 5000; // 5 seconds
 
+// Language filter state
+let basqueOnlyFilter = false;
+
 // Load content from JSON
 async function loadContent() {
     try {
@@ -29,13 +32,32 @@ async function loadContent() {
     }
 }
 
+// Language filter helper
+function hasBasqueLanguage(item) {
+    // Check if item has Basque language (eu)
+    if (!item.languages || !Array.isArray(item.languages)) {
+        return false;
+    }
+    return item.languages.includes('eu') || item.languages.includes('eus');
+}
+
+function applyLanguageFilter(items) {
+    if (!basqueOnlyFilter) {
+        return items;
+    }
+    return items.filter(item => hasBasqueLanguage(item));
+}
+
 // Category filter functions
 function getRecentlyAdded(items, limit = 20) {
     const seenSeries = new Set();
     const results = [];
     
+    // Apply language filter first
+    const filteredItems = applyLanguageFilter(items);
+    
     // Sort all items by publication date first
-    const sortedItems = items
+    const sortedItems = filteredItems
         .filter(item => item.publication_date && item.thumbnail)
         .sort((a, b) => {
             const dateA = new Date(a.publication_date);
@@ -65,7 +87,10 @@ function getSoonUnavailable(items, limit = 20) {
     const today = new Date();
     const sixtyDaysFromNow = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
     
-    return items
+    // Apply language filter first
+    const filteredItems = applyLanguageFilter(items);
+    
+    return filteredItems
         .filter(item => {
             if (!item.available_until || !item.thumbnail) return false;
             const expiryDate = new Date(item.available_until);
@@ -82,7 +107,10 @@ function getSoonUnavailable(items, limit = 20) {
 }
 
 function getMovies(items, limit = 20) {
-    return items
+    // Apply language filter first
+    const filteredItems = applyLanguageFilter(items);
+    
+    return filteredItems
         .filter(item => {
             const isMovie = item.type === 'vod' || item.type === 'movie';
             const hasImage = item.thumbnail;
@@ -103,10 +131,13 @@ function getMovies(items, limit = 20) {
 }
 
 function getSeries(items, limit = 20) {
+    // Apply language filter first
+    const filteredItems = applyLanguageFilter(items);
+    
     // Group episodes by series_slug
     const seriesMap = new Map();
     
-    items.forEach(item => {
+    filteredItems.forEach(item => {
         if (item.series_slug && item.type === 'episode') {
             if (!seriesMap.has(item.series_slug)) {
                 seriesMap.set(item.series_slug, {
@@ -114,7 +145,8 @@ function getSeries(items, limit = 20) {
                     series_title: item.series_title || item.series_slug,
                     episodes: [],
                     latest_date: null,
-                    thumbnail: null
+                    thumbnail: null,
+                    languages: item.languages // Store languages for series
                 });
             }
             
@@ -151,7 +183,10 @@ function getSeries(items, limit = 20) {
 function getChildrenContent(items, limit = 20) {
     const kidsRatings = ['TP', '0-4', '5-7', '+7', '7'];
     
-    return items
+    // Apply language filter first
+    const filteredItems = applyLanguageFilter(items);
+    
+    return filteredItems
         .filter(item => {
             const isKidsRating = kidsRatings.includes(item.age_rating);
             const isStandalone = item.type === 'vod' || item.type === 'movie';
@@ -716,6 +751,56 @@ function unlockBodyScroll() {
     window.scrollTo(0, scrollPosition);
 }
 
+// Render all content (categories and hero)
+function renderAllContent() {
+    // Define categories
+    const categories = [
+        { id: 'recent', title: 'Duela gutxi gehitutakoa', items: getRecentlyAdded(allContent) },
+        { id: 'expiring', title: 'Azken aukera', items: getSoonUnavailable(allContent) },
+        { id: 'movies', title: 'Filmak', items: getMovies(allContent) },
+        { id: 'series', title: 'Serieak', items: getSeries(allContent) },
+        { id: 'kids', title: 'Haurrak', items: getChildrenContent(allContent) }
+    ];
+    
+    // Render hero banner with 10 most recent films (VOD only, no episodes)
+    const filteredContent = applyLanguageFilter(allContent);
+    const recentFilms = filteredContent
+        .filter(item => {
+            const isVod = item.type === 'vod' || item.type === 'movie';
+            const notEpisode = !item.series_slug;
+            const hasImage = item.thumbnail;
+            const hasDate = item.publication_date;
+            return isVod && notEpisode && hasImage && hasDate;
+        })
+        .sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date))
+        .slice(0, 10);
+    
+    if (recentFilms.length > 0) {
+        initFeaturedCarousel(recentFilms);
+    } else {
+        // Hide hero banner if no films
+        const heroBanner = document.getElementById('hero-banner');
+        if (heroBanner) {
+            heroBanner.style.display = 'none';
+        }
+    }
+    
+    // Clear and render categories
+    const container = document.getElementById('categories-container');
+    container.innerHTML = '';
+    
+    categories.forEach(cat => {
+        if (cat.items.length > 0) {
+            renderCategory(cat, cat.items, container);
+        }
+    });
+    
+    // Show message if no content after filtering
+    if (categories.every(cat => cat.items.length === 0)) {
+        container.innerHTML = '<div class="error-message">Ez da edukia aurkitu euskarazko filtroarekin.</div>';
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     // Show loading indicator
@@ -734,38 +819,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // Define categories
-    const categories = [
-        { id: 'recent', title: 'Duela gutxi gehitutakoa', items: getRecentlyAdded(allContent) },
-        { id: 'expiring', title: 'Azken aukera', items: getSoonUnavailable(allContent) },
-        { id: 'movies', title: 'Filmak', items: getMovies(allContent) },
-        { id: 'series', title: 'Serieak', items: getSeries(allContent) },
-        { id: 'kids', title: 'Haurrak', items: getChildrenContent(allContent) }
-    ];
+    // Render initial content
+    renderAllContent();
     
-    // Render hero banner with 10 most recent films (VOD only, no episodes)
-    const recentFilms = allContent
-        .filter(item => {
-            const isVod = item.type === 'vod' || item.type === 'movie';
-            const notEpisode = !item.series_slug;
-            const hasImage = item.thumbnail;
-            const hasDate = item.publication_date;
-            return isVod && notEpisode && hasImage && hasDate;
-        })
-        .sort((a, b) => new Date(b.publication_date) - new Date(a.publication_date))
-        .slice(0, 10);
-    
-    if (recentFilms.length > 0) {
-        initFeaturedCarousel(recentFilms);
+    // Setup language toggle
+    const basqueToggle = document.getElementById('basque-only-toggle');
+    if (basqueToggle) {
+        basqueToggle.addEventListener('change', (e) => {
+            basqueOnlyFilter = e.target.checked;
+            renderAllContent();
+        });
     }
-    
-    // Render categories
-    const container = document.getElementById('categories-container');
-    categories.forEach(cat => {
-        if (cat.items.length > 0) {
-            renderCategory(cat, cat.items, container);
-        }
-    });
     
     // Setup modal event listeners
     const closeBtn = document.getElementById('mobile-detail-close');
