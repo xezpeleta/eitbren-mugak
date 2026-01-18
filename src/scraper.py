@@ -1101,16 +1101,40 @@ class ContentScraper:
         print(f"Starting {self.platform} Content Scraper")
         print("=" * 80)
         
+        # If new_only mode and no specific slugs provided, get existing slugs from DB first
+        existing_slugs = set()
+        if self.new_only and not media_slugs and not series_slugs:
+            print("\n[NEW-ONLY MODE] Loading existing content from database...")
+            existing_content = self.db.get_all_content(platform=self.platform)
+            existing_slugs = {item['slug'] for item in existing_content}
+            print(f"  Found {len(existing_slugs)} existing items in database")
+        
         # Discover content if not provided
         if not media_slugs:
             print("\n[Step 1] Discovering media...")
-            media_slugs = self.discover_media_from_sections()
-            print(f"  Found {len(media_slugs)} media items")
+            discovered_media = self.discover_media_from_sections()
+            
+            # Filter out existing content if new_only mode
+            if self.new_only and existing_slugs:
+                media_slugs = [slug for slug in discovered_media if slug not in existing_slugs]
+                print(f"  Found {len(discovered_media)} total media items")
+                print(f"  Filtered to {len(media_slugs)} new media items (skipping {len(discovered_media) - len(media_slugs)} existing)")
+            else:
+                media_slugs = discovered_media
+                print(f"  Found {len(media_slugs)} media items")
         
         if not series_slugs:
             print("\n[Step 2] Discovering series...")
-            series_slugs = self.discover_series_from_sections()
-            print(f"  Found {len(series_slugs)} series")
+            discovered_series = self.discover_series_from_sections()
+            
+            # Filter out existing content if new_only mode
+            if self.new_only and existing_slugs:
+                series_slugs = [slug for slug in discovered_series if slug not in existing_slugs]
+                print(f"  Found {len(discovered_series)} total series")
+                print(f"  Filtered to {len(series_slugs)} new series (skipping {len(discovered_series) - len(series_slugs)} existing)")
+            else:
+                series_slugs = discovered_series
+                print(f"  Found {len(series_slugs)} series")
         
         self.stats['total_discovered'] = len(media_slugs) + len(series_slugs)
         
@@ -1127,14 +1151,7 @@ class ContentScraper:
             print(f"\n[Step 3] Checking {len(media_slugs)} media items...")
             for slug in media_slugs:
                 if slug not in self.discovered_slugs:
-                    # If new_only is enabled, check if media exists
-                    if self.new_only:
-                        status = self.db.get_content_status(slug, self.platform)
-                        if status:
-                            print(f"  ℹ️  Skipping existing media: {slug}")
-                            self.discovered_slugs.add(slug)
-                            continue
-                            
+                    # No need to check again here since we already filtered above
                     self.check_media(slug)
                     self.discovered_slugs.add(slug)
         
@@ -1143,15 +1160,19 @@ class ContentScraper:
             print(f"\n[Step 4] Checking {len(series_slugs)} series...")
             for slug in series_slugs:
                 if slug not in self.discovered_slugs:
-                    # For series, we don't skip the series check entirely because there might be new episodes.
-                    # The check_series method handles skipping existing episodes internally.
+                    # For series, check_series method handles skipping existing episodes internally
                     self.check_series(slug)
                     self.discovered_slugs.add(slug)
         
-        # Step 4: Check channels if requested (ETB On only)
+        # Step 5: Check channels if requested (ETB On only)
         if check_channels and self.platform == 'etbon.eus':
-            print("\n[Step 4] Checking live channels...")
+            print("\n[Step 5] Checking live channels...")
             channel_slugs = self.discover_channels()
+            
+            # Filter out existing channels if new_only mode
+            if self.new_only and existing_slugs:
+                channel_slugs = [slug for slug in channel_slugs if slug not in existing_slugs]
+                print(f"  Filtered to {len(channel_slugs)} new channels")
             
             if limit and len(channel_slugs) > limit:
                 channel_slugs = channel_slugs[:limit]
